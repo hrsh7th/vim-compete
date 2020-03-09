@@ -128,19 +128,20 @@ function! s:filter(context) abort
     endif
   endfunction
 
+  " no completion candidates.
   let l:matches = filter(values(s:state.matches), { _, match -> index(['completed'], match.status) != -1 })
-
-  " avoid screen flicker.
-  let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-  if pumvisible() && s:cache.start == l:start
-    call complete(s:cache.start, s:cache.items)
-  endif
-
   if len(l:matches) == 0
     return
   endif
 
-  if s:timer_id >= 0
+  " avoid screen flicker.
+  let l:start = min(map(copy(l:matches), { _, match -> match.start }))
+  if l:start == s:cache.start
+    call complete(s:cache.start, s:cache.items)
+  endif
+
+  " throttle.
+  if s:timer_id != -1
     return
   endif
   let s:timer_id = timer_start(80, { -> l:ctx.callback(a:context, l:matches, l:start) })
