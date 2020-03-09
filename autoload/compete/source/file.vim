@@ -17,14 +17,43 @@ function! s:complete(context, callback) abort
   let l:input = matchstr(a:context.before_line, '\%(\~/\|\./\|\.\./\|/\)\%([^/\\:\*?<>\|]*\)\%(/[^/\\:\*?<>\|]*\)*')
   let l:input = substitute(s:absolute(l:input), '[^/]*$', '', 'g')
   let l:paths = globpath(l:input, '*', v:true, v:true)
-  let l:paths = map(l:paths, { _, path -> strpart(path, strlen(l:input) - 1, strlen(path) - strlen(l:input) + 1) })
 
   call a:callback({
-  \   'items': map(l:paths, { _, path -> {
-  \     'word': path,
-  \     'abbr': path,
-  \   } })
+  \   'items': sort(map(l:paths, function('s:convert', [l:input])), function('s:sort'))
   \ })
+endfunction
+
+"
+" convert
+"
+function! s:convert(input, key, path) abort
+  let l:part = fnamemodify(a:path, ':t')
+  if isdirectory(a:path)
+    let l:menu = '[d]'
+    let l:abbr = '/' . l:part
+  else
+    let l:menu = '[f]'
+    let l:abbr =  l:part
+  endif
+
+  return {
+  \   'word': '/' . l:part,
+  \   'abbr': l:abbr,
+  \   'menu': l:menu
+  \ }
+endfunction
+
+"
+" sort
+"
+function! s:sort(item1, item2) abort
+  if a:item1.menu ==# '[d]' && a:item2.menu !=# '[d]'
+    return -1
+  endif
+  if a:item1.menu !=# '[d]' && a:item2.menu ==# '[d]'
+    return 1
+  endif
+  return 0
 endfunction
 
 
