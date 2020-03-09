@@ -97,20 +97,15 @@ function! s:filter(context) abort
   endif
 
   let l:ctx = {}
-  function! l:ctx.callback(context) abort
+  function! l:ctx.callback(context, matches, start) abort
     let s:timer_id = -1
 
-    let l:matches = filter(values(s:state.matches), { _, match -> index(['processing', 'completed'], match.status) != -1 })
-    let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-    let l:input = strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1))
-    let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
-    let l:matches = s:reduce(l:matches)
-
     " compute items.
+    let l:input = strpart(a:context.before_line, a:start - 1, strlen(a:context.before_line) - (a:start - 1))
     let l:items = []
-    for l:match in l:matches
+    for l:match in sort(a:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
       let l:source = compete#source#get_by_name(l:match.name)
-      let l:prefix = strpart(a:context.before_line, l:start - 1, l:match.start - l:start)
+      let l:prefix = strpart(a:context.before_line, a:start - 1, l:match.start - a:start)
       let l:query = l:source.query(l:input)
       for l:item in l:match.items
         let l:word = l:prefix . l:item.word
@@ -125,22 +120,30 @@ function! s:filter(context) abort
 
     " complete.
     if mode()[0] ==# 'i'
-      call complete(l:start, l:items)
+      call complete(a:start, l:items)
       let s:cache = {
-      \   'start': l:start,
+      \   'start': a:start,
       \   'items': l:items
       \ }
     endif
   endfunction
 
-  if pumvisible()
+  let l:matches = filter(values(s:state.matches), { _, match -> index(['completed'], match.status) != -1 })
+
+  " avoid screen flicker.
+  let l:start = min(map(copy(l:matches), { _, match -> match.start }))
+  if pumvisible() && s:cache.start == l:start
     call complete(s:cache.start, s:cache.items)
+  endif
+
+  if len(l:matches) == 0
+    return
   endif
 
   if s:timer_id >= 0
     return
   endif
-  let s:timer_id = timer_start(80, { -> l:ctx.callback(a:context) })
+  let s:timer_id = timer_start(80, { -> l:ctx.callback(a:context, l:matches, l:start) })
 endfunction
 
 "
@@ -162,23 +165,6 @@ function! s:on_complete(context, source, id, match) abort
   let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
   call s:filter(a:context)
-endfunction
-
-"
-" reduce
-"
-function! s:reduce(matches) abort
-  let l:processing = v:false
-  let l:matches = []
-  for l:match in a:matches
-    if l:match.status ==# 'processing'
-      let l:processing = v:true
-    endif
-    if !l:processing
-      call add(l:matches, l:match)
-    endif
-  endfor
-  return l:matches
 endfunction
 
 "
