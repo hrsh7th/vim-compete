@@ -3,6 +3,8 @@ if exists('g:loaded_compete')
 endif
 let g:loaded_compete = v:true
 
+let g:compete_enable = get(g:, 'compete_enable', v:true)
+
 augroup compete
   autocmd!
   autocmd InsertLeave * call s:on_insert_leave()
@@ -14,14 +16,18 @@ augroup END
 " on_insert_leave
 "
 function! s:on_insert_leave() abort
-  call compete#on_clear()
+  if g:compete_enable
+    call compete#on_clear()
+  endif
 endfunction
 
 "
 " on_text_changed
 "
 function! s:on_text_changed() abort
-  call compete#on_change()
+  if g:compete_enable
+    call compete#on_change()
+  endif
 endfunction
 
 call compete#source#buffer#register()

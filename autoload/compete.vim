@@ -1,5 +1,9 @@
 let s:error = 0
-let s:timer_id = 0
+let s:timer_id = -1
+let s:cache = {
+\   'start': -1,
+\   'items': [],
+\ }
 let s:state = {
 \   'matches': {},
 \ }
@@ -8,6 +12,11 @@ let s:state = {
 " on_clear
 "
 function! compete#on_clear() abort
+  let s:cache = {
+  \   'lnum': -1,
+  \   'start': -1,
+  \   'items': [],
+  \ }
   let s:state = {
   \   'matches': {},
   \ }
@@ -87,32 +96,51 @@ function! s:filter(context) abort
     return
   endif
 
-  let l:matches = filter(values(s:state.matches), { _, match -> index(['processing', 'completed'], match.status) != -1 })
-  let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-  let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
-  let l:matches = s:reduce(l:matches)
+  let l:ctx = {}
+  function! l:ctx.callback(context) abort
+    let s:timer_id = -1
 
-  " compute items.
-  let l:items = []
-  for l:match in l:matches
-    let l:source = compete#source#get_by_name(l:match.name)
-    let l:prefix = strpart(a:context.before_line, l:start - 1, l:match.start - l:start)
-    let l:query = l:source.query(strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1)))
-    for l:item in l:match.items
-      let l:word = l:prefix . l:item.word
-      if l:word =~ l:query
-        call add(l:items, extend({
-        \   'word': l:word,
-        \   'abbr': get(l:item, 'abbr', l:item.word),
-        \ }, l:item, 'keep'))
-      endif
+    let l:matches = filter(values(s:state.matches), { _, match -> index(['processing', 'completed'], match.status) != -1 })
+    let l:start = min(map(copy(l:matches), { _, match -> match.start }))
+    let l:input = strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1))
+    let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
+    let l:matches = s:reduce(l:matches)
+
+    " compute items.
+    let l:items = []
+    for l:match in l:matches
+      let l:source = compete#source#get_by_name(l:match.name)
+      let l:prefix = strpart(a:context.before_line, l:start - 1, l:match.start - l:start)
+      let l:query = l:source.query(l:input)
+      for l:item in l:match.items
+        let l:word = l:prefix . l:item.word
+        if l:word =~ l:query
+          call add(l:items, extend({
+          \   'word': l:word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \ }, l:item, 'keep'))
+        endif
+      endfor
     endfor
-  endfor
 
-  " complete.
-  if mode()[0] ==# 'i'
-    call complete(l:start, l:items)
+    " complete.
+    if mode()[0] ==# 'i'
+      call complete(l:start, l:items)
+      let s:cache = {
+      \   'start': l:start,
+      \   'items': l:items
+      \ }
+    endif
+  endfunction
+
+  if pumvisible()
+    call complete(s:cache.start, s:cache.items)
   endif
+
+  if s:timer_id >= 0
+    return
+  endif
+  let s:timer_id = timer_start(80, { -> l:ctx.callback(a:context) })
 endfunction
 
 "
@@ -133,8 +161,7 @@ function! s:on_complete(context, source, id, match) abort
   let l:match.items = a:match.items
   let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
-  call timer_stop(s:timer_id)
-  let s:timer_id = timer_start(200, { -> s:filter(a:context) })
+  call s:filter(a:context)
 endfunction
 
 "
