@@ -1,5 +1,4 @@
-let s:id = 0
-let s:error_count = 0
+let s:error = 0
 let s:timer_id = 0
 let s:state = {
 \   'matches': {},
@@ -18,7 +17,7 @@ endfunction
 " compete#on_change
 "
 function! compete#on_change() abort
-  if s:error_count > 10
+  if s:error > 10
     return
   endif
 
@@ -29,7 +28,7 @@ function! compete#on_change() abort
     endfor
     call s:filter(l:context)
   catch /.*/
-    let s:error_count += 1
+    let s:error += 1
   endtry
 endfunction
 
@@ -103,7 +102,8 @@ function! s:filter(context) abort
       let l:word = l:prefix . l:item.word
       if l:word =~ l:query
         call add(l:items, extend({
-        \   'word': l:word
+        \   'word': l:word,
+        \   'abbr': get(l:item, 'abbr', l:item.word),
         \ }, l:item, 'keep'))
       endif
     endfor
@@ -119,7 +119,8 @@ endfunction
 " on_complete
 "
 function! s:on_complete(context, source, id, match) abort
-  if a:context.bufnr != bufnr('%')
+  let l:context = s:context()
+  if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
     return
   endif
 
@@ -157,9 +158,7 @@ endfunction
 " context
 "
 function! s:context() abort
-  let s:id += 1
   return {
-  \   'id': s:id,
   \   'bufnr': bufnr('%'),
   \   'lnum': line('.'),
   \   'col': col('.'),

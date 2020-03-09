@@ -4,7 +4,8 @@
 function! compete#source#file#register() abort
   call compete#source#register({
   \   'name': 'file',
-  \   'pattern': '\%(^\|[^<]\)\zs/[^/\\:\*?<>\|]*',
+  \   'pattern': '\%(^\|[^<[:blank:][:digit:]]\s*\)\zs/[^/\\:\*?<>\|]*',
+  \   'priority': -1,
   \   'filetypes':  ['*'],
   \   'complete': function('s:complete')
   \ })

@@ -10,6 +10,7 @@ function! compete#source#buffer#register() abort
   call compete#source#register({
   \   'name': 'buffer',
   \   'filetypes': ['*'],
+  \   'priority': -2,
   \   'pattern': s:token . '*',
   \   'complete': function('s:complete'),
   \ })
@@ -57,8 +58,10 @@ function! s:cache() abort
   for l:keyword in split(join(l:lines, ' '), s:token . '\zs.\{-}\ze' . printf('\%($\|%s\)', s:token))
     let l:keyword = trim(l:keyword)
     if len(l:keyword) > 2 && !has_key(l:unique, l:keyword)
-      let l:unique[l:keyword] =  1
-      let s:keywords[l:bufnr] += [l:keyword]
+      if !has_key(l:unique, l:keyword)
+        let l:unique[l:keyword] =  1
+        let s:keywords[l:bufnr] += [l:keyword]
+      endif
     endif
   endfor
 endfunction
