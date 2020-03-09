@@ -16,7 +16,6 @@ function! compete#source#register(source) abort
   let a:source.filetypes = get(a:source, 'filetypes', ['*'])
   let a:source.pattern = get(a:source, 'pattern', '\k\+')
   let a:source.trigger_chars = get(a:source, 'trigger_chars', [])
-  let a:source.query = get(a:source, 'query', { input -> '^\V' . input })
   let s:sources[s:id] = a:source
   return s:id
 endfunction

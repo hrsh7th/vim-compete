@@ -103,21 +103,33 @@ function! s:filter(context) abort
 
     " compute items.
     let l:input = strpart(a:context.before_line, a:start - 1, strlen(a:context.before_line) - (a:start - 1))
-    let l:items = []
+
+    let l:prefix_items = []
+    let l:fuzzy_items = []
     for l:match in sort(a:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
       let l:source = compete#source#get_by_name(l:match.name)
-      let l:prefix = strpart(a:context.before_line, a:start - 1, l:match.start - a:start)
-      let l:query = l:source.query(l:input)
+      let l:short = strpart(a:context.before_line, a:start - 1, l:match.start - a:start)
+
+      let l:prefix = '^\V' . l:input
+      let l:fuzzy = '^.*\V' . join(split(l:input, '\zs'), '\m.*\V')
+
       for l:item in l:match.items
-        let l:word = l:prefix . l:item.word
-        if l:word =~ l:query
-          call add(l:items, extend({
+        let l:word = l:short . l:item.word
+        if l:word =~ l:prefix
+          call add(l:prefix_items, extend({
+          \   'word': l:word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \ }, l:item, 'keep'))
+        elseif l:word =~ l:fuzzy
+          call add(l:fuzzy_items, extend({
           \   'word': l:word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \ }, l:item, 'keep'))
         endif
       endfor
     endfor
+
+    let l:items = l:prefix_items + l:fuzzy_items
 
     " complete.
     if mode()[0] ==# 'i'
@@ -140,6 +152,7 @@ function! s:filter(context) abort
   let l:start = min(map(copy(l:matches), { _, match -> match.start }))
   if l:start == s:cache.start
     call complete(s:cache.start, s:cache.items)
+    redraw
   endif
 
   " throttle.
