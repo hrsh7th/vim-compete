@@ -159,7 +159,10 @@ function! s:filter(context) abort
   if s:timer_id != -1
     return
   endif
-  let s:timer_id = timer_start(80, { -> l:ctx.callback(a:context, l:matches, l:start) })
+  let s:timer_id = timer_start(
+  \   l:start != s:cache.start ? 20 : 160,
+  \   { -> l:ctx.callback(a:context, l:matches, l:start) }
+  \ )
 endfunction
 
 "
