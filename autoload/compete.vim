@@ -50,6 +50,7 @@ function! s:update(context, source) abort
     \   'id': 0,
     \   'name': a:source.name,
     \   'status': 'waiting',
+    \   'lnum': -1,
     \   'start': -1,
     \   'items': [],
     \   'incomplete': v:false,
@@ -130,6 +131,7 @@ function! s:filter(context) abort
 
   " no completion candidates.
   let l:matches = filter(values(s:state.matches), { _, match -> index(['completed'], match.status) != -1 })
+  let l:matches = filter(l:matches, { _, match -> match.lnum == a:context.lnum })
   if len(l:matches) == 0
     return
   endif
@@ -162,6 +164,7 @@ function! s:on_complete(context, source, id, match) abort
   endif
 
   let l:match.status = 'completed'
+  let l:match.lnum = a:context.lnum
   let l:match.items = a:match.items
   let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
