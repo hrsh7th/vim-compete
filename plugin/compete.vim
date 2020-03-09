@@ -1,0 +1,29 @@
+if exists('g:loaded_compete')
+  finish
+endif
+let g:loaded_compete = v:true
+
+augroup compete
+  autocmd!
+  autocmd InsertLeave * call s:on_insert_leave()
+  autocmd InsertEnter * call timer_start(0, { -> s:on_text_changed() })
+  autocmd TextChangedI,TextChangedP * call s:on_text_changed()
+augroup END
+
+"
+" on_insert_leave
+"
+function! s:on_insert_leave() abort
+  call compete#on_clear()
+endfunction
+
+"
+" on_text_changed
+"
+function! s:on_text_changed() abort
+  call compete#on_change()
+endfunction
+
+call compete#source#buffer#register()
+call compete#source#file#register()
+
