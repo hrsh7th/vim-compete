@@ -33,15 +33,22 @@ function! compete#on_change() abort
     return
   endif
 
+  " changed check.
   if s:state.changed == b:changedtick
     return
   endif
   let s:state.changed = b:changedtick
 
+  " ignore check.
+  if s:ignore()
+    return
+  endif
+
   try
     let l:context = s:context()
+    call s:keep_pum(l:context)
     for l:source in compete#source#find()
-      call s:update(l:context, l:source)
+      call s:trigger(l:context, l:source)
     endfor
     call s:filter(l:context)
   catch /.*/
@@ -50,9 +57,26 @@ function! compete#on_change() abort
 endfunction
 
 "
-" update
+" keep_pum
 "
-function! s:update(context, source) abort
+function! s:keep_pum(context) abort
+  " no completion candidates.
+  let l:matches = s:get_matches()
+  if len(l:matches) == 0
+    return
+  endif
+
+  " cancel vim's native filter behavior.
+  let l:start = min(map(copy(l:matches), 'v:val.start'))
+  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
+    call complete(s:cache.start, s:cache.items)
+  endif
+endfunction
+
+"
+" trigger
+"
+function! s:trigger(context, source) abort
   if !has_key(s:state.matches, a:source.name)
     let s:state.matches[a:source.name] = {
     \   'id': 0,
@@ -64,12 +88,10 @@ function! s:update(context, source) abort
     \   'incomplete': v:false,
     \ }
   endif
-
   let l:match = s:state.matches[a:source.name]
 
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
   let l:input = matchstr(a:context.before_line, a:source.pattern . '$')
-
   if l:chars !=# ''
     let l:start = strlen(a:context.before_line) + 1
   elseif l:input !=# ''
@@ -106,44 +128,30 @@ endfunction
 " filter
 "
 function! s:filter(context) abort
-  " mode check.
-  if mode()[0] !=# 'i'
-    return
-  endif
-
-  " selected check.
-  let l:complete_info = complete_info(['pum_visible', 'selected'])
-  if l:complete_info.pum_visible && l:complete_info.selected != -1
-    call timer_stop(s:timer_id)
-    let s:timer_id = -1
-    return
-  endif
-
   let l:ctx = {}
-  function! l:ctx.callback(context) abort
-    " mode check.
-    if mode()[0] !=# 'i'
+  function! l:ctx.callback() abort
+    let s:timer_id = -1
+
+    if s:ignore()
       return
     endif
 
-    call timer_stop(s:timer_id)
-    let s:timer_id = -1
-
-    " compute items.
+    " no completion candidates.
     let l:matches = s:get_matches()
     if len(l:matches) == 0
       return
     endif
 
-    let l:start = min(map(copy(l:matches), 'v:val["start"]'))
-    let l:input = strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1))
+    let l:context = s:context()
+    let l:start = min(map(copy(l:matches), 'v:val.start'))
+    let l:input = strpart(l:context.before_line, l:start - 1, strlen(l:context.before_line) - (l:start - 1))
 
     let l:prefix_items = []
     let l:fuzzy_items = []
 
     for l:match in l:matches
       let l:source = compete#source#get_by_name(l:match.name)
-      let l:short = strpart(a:context.before_line, l:start - 1, l:match.start - l:start)
+      let l:short = strpart(l:context.before_line, l:start - 1, l:match.start - l:start)
 
       let l:prefix = '^\V' . l:input
       let l:fuzzy = '^.*\V' . join(split(l:input, '\zs'), '\m.*\V')
@@ -173,31 +181,17 @@ function! s:filter(context) abort
     " complete.
     call complete(l:start, l:items)
     let s:cache = {
-    \   'lnum': a:context.lnum,
+    \   'lnum': l:context.lnum,
     \   'start': l:start,
     \   'items': l:items
     \ }
   endfunction
 
-  " no completion candidates.
-  let l:matches = s:get_matches()
-  if len(l:matches) == 0
-    call timer_stop(s:timer_id)
-    let s:timer_id = -1
-    return
-  endif
-
-  " cancel vim's native filter behavior.
-  let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
-    call complete(s:cache.start, s:cache.items)
-  endif
-
   " throttle.
   if s:timer_id != -1
     return
   endif
-  let s:timer_id = timer_start(100, { -> l:ctx.callback(a:context) })
+  let s:timer_id = timer_start(100, { -> l:ctx.callback() })
 endfunction
 
 "
@@ -266,6 +260,24 @@ function! s:create_abort_callback(context, source, id) abort
 endfunction
 
 "
+" ignore
+"
+function! s:ignore() abort
+  " mode check.
+  if mode()[0] !=# 'i'
+    return v:true
+  endif
+
+  " selected check.
+  let l:complete_info = complete_info(['selected'])
+  if l:complete_info.selected != -1
+    return v:true
+  endif
+
+  return v:false
+endfunction
+
+"
 " find
 "
 function! s:find(haystack, needle, ...) abort
@@ -296,3 +308,4 @@ function! s:get_before_char() abort
 
   return ''
 endfunction
+

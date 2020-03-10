@@ -1,7 +1,7 @@
 let g:compete_source_buffer_max = 1000
 
 let s:keywords = {}
-let s:token = '\%(\w\%(\w\|:\|\-\|->\)*\)'
+let s:token = compete#default#get_token_pattern()
 
 function! compete#source#buffer#register() abort
   augroup compete#source#buffer#register
