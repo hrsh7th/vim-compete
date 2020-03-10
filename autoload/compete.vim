@@ -113,8 +113,6 @@ function! s:filter(context) abort
     " compute items.
     let l:matches = s:get_matches()
     if len(l:matches) == 0
-      call timer_stop(s:timer_id)
-      let s:timer_id = -1
       return
     endif
 
@@ -168,10 +166,11 @@ function! s:filter(context) abort
   endif
 
   " cancel vim's native filter behavior.
-  let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-  if l:start == s:cache.start
-    call complete(s:cache.start, s:cache.items)
-    redrawstatus
+  if pumvisible()
+    let l:start = min(map(copy(l:matches), { _, match -> match.start }))
+    if l:start == s:cache.start
+      call complete(s:cache.start, s:cache.items)
+    endif
   endif
 
   " throttle.
@@ -199,7 +198,7 @@ function! s:context() abort
   \   'bufnr': bufnr('%'),
   \   'lnum': line('.'),
   \   'col': col('.'),
-  \   'before_char': lamp#view#cursor#get_before_char_skip_white(),
+  \   'before_char': s:get_before_char(),
   \   'before_line': getline('.')[0 : col('.') - 2],
   \ }
 endfunction
@@ -255,3 +254,25 @@ function! s:find(haystack, needle, ...) abort
   return l:index != -1 ? a:haystack[l:index] : l:def
 endfunction
 
+"
+" get_before_char
+"
+function! s:get_before_char() abort
+  let l:current_lnum = line('.')
+
+  let l:lnum = l:current_lnum
+  while l:lnum > 0
+    if l:lnum == l:current_lnum
+      let l:text = getline('.')[0 : -2]
+    else
+      let l:text = getline(l:lnum)
+    endif
+    let l:match = matchlist(l:text, '\([^[:blank:]]\)\s*$')
+    if get(l:match, 1, v:null) isnot v:null
+      return l:match[1]
+    endif
+    let l:lnum -= 1
+  endwhile
+
+  return ''
+endfunction
