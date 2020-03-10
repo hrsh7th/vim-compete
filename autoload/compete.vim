@@ -83,9 +83,10 @@ function! s:update(context, source) abort
   let l:match.status = l:match.start == l:start ? 'completed' : 'processing'
   let l:match.lnum = a:context.lnum
   let l:match.start = l:start
+  let l:match.items = []
   call a:source.complete(
   \   extend({ 'start': l:start, 'input': l:input }, a:context, 'keep'),
-  \   function('s:on_complete', [a:context, a:source, l:match.id])
+  \   s:create_callback(a:context, a:source, l:match.id)
   \ )
 endfunction
 
@@ -93,7 +94,10 @@ endfunction
 " filter
 "
 function! s:filter(context) abort
-  if complete_info(['selected']).selected != -1
+  " selected check.
+  if pumvisible() && !empty(v:completed_item)
+    call timer_stop(s:timer_id)
+    let s:timer_id = -1
     return
   endif
 
@@ -106,7 +110,7 @@ function! s:filter(context) abort
 
     let l:prefix_items = []
     let l:fuzzy_items = []
-    for l:match in sort(a:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
+    for l:match in a:matches
       let l:source = compete#source#get_by_name(l:match.name)
       let l:short = strpart(a:context.before_line, a:start - 1, l:match.start - a:start)
 
@@ -142,9 +146,10 @@ function! s:filter(context) abort
   endfunction
 
   " no completion candidates.
-  let l:matches = filter(values(s:state.matches), { _, match -> index(['completed'], match.status) != -1 })
-  let l:matches = filter(l:matches, { _, match -> match.lnum == a:context.lnum })
+  let l:matches = s:get_matches()
   if len(l:matches) == 0
+    call timer_stop(s:timer_id)
+    let s:timer_id = -1
     return
   endif
 
@@ -159,32 +164,29 @@ function! s:filter(context) abort
   if s:timer_id != -1
     return
   endif
+
   let s:timer_id = timer_start(
-  \   l:start != s:cache.start ? 20 : 160,
+  \   l:start != s:cache.start ? 80 : 160,
   \   { -> l:ctx.callback(a:context, l:matches, l:start) }
   \ )
 endfunction
 
 "
-" on_complete
+" get_matches
 "
-function! s:on_complete(context, source, id, match) abort
-  let l:context = s:context()
-  if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
-    return
-  endif
+function! s:get_matches() abort
+  let l:matches = values(s:state.matches)
+  let l:matches = filter(l:matches, { _, match -> match.status ==# 'completed' || match.status ==# 'processing' })
+  let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
 
-  let l:match = get(s:state.matches, a:source.name, {})
-  if a:id < l:match.id
-    return
-  endif
-
-  let l:match.status = 'completed'
-  let l:match.lnum = a:context.lnum
-  let l:match.items = a:match.items
-  let l:match.incomplete = get(a:match, 'incomplete', v:false)
-
-  call s:filter(a:context)
+  let l:i = 0
+  for l:match in l:matches
+    if l:match.status !=# 'completed'
+      break
+    endif
+    let l:i += 1
+  endfor
+  return l:matches[0 : l:i - 1]
 endfunction
 
 "
@@ -198,6 +200,42 @@ function! s:context() abort
   \   'before_char': lamp#view#cursor#get_before_char_skip_white(),
   \   'before_line': getline('.')[0 : col('.') - 2],
   \ }
+endfunction
+
+"
+" create_callback
+"
+function! s:create_callback(context, source, id) abort
+  let l:ctx = {}
+
+  " callback.
+  function! l:ctx.callback(context, source, id, matches) abort
+    call s:on_complete(a:context, a:source, a:id, a:matches)
+  endfunction
+
+  return function(l:ctx.callback, [a:context, a:source, a:id], l:ctx)
+endfunction
+
+"
+" on_complete
+"
+function! s:on_complete(context, source, id, match) abort
+  let l:context = s:context()
+  if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
+    return
+  endif
+
+  let l:match = get(s:state.matches, a:source.name, {})
+  if !has_key(l:match, 'id') || a:id < l:match.id
+    return
+  endif
+
+  let l:match.status = 'completed'
+  let l:match.lnum = a:context.lnum
+  let l:match.items = a:match.items
+  let l:match.incomplete = get(a:match, 'incomplete', v:false)
+
+  call s:filter(a:context)
 endfunction
 
 "
