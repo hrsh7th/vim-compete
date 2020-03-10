@@ -38,19 +38,6 @@ endfunction
 " compete#source#find
 "
 function! compete#source#find() abort
-  return filter(values(s:sources), { _, source ->
-  \   index(source.filetypes, &filetype) != -1 || index(source.filetypes, '*') != -1
-  \ })
-endfunction
-
-"
-" default_keyword_pattern
-"
-function! s:default_keyword_pattern() abort
-  let l:keywords = split('@,48-57,_,192-255', ',')
-  let l:keywords = filter(l:keywords, { _, k -> match(k, '\d\+-\d\+') == -1 })
-  let l:keywords = filter(l:keywords, { _, k -> k !=# '@' })
-  let l:pattern = '\%(' . join(map(l:keywords, { _, v -> '\V' . escape(v, '\') . '\m' }), '\|') . '\|\w\)\+'
-  return l:pattern
+  return filter(values(s:sources), 'index(v:val.filetypes, &filetype) != -1 || index(v:val.filetypes, "*") != -1')
 endfunction
 

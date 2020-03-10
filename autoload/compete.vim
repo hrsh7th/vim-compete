@@ -112,7 +112,8 @@ function! s:filter(context) abort
   endif
 
   " selected check.
-  if pumvisible() && !empty(v:completed_item)
+  let l:complete_info = complete_info(['pum_visible', 'selected'])
+  if l:complete_info.pum_visible && l:complete_info.selected != -1
     call timer_stop(s:timer_id)
     let s:timer_id = -1
     return
@@ -134,7 +135,7 @@ function! s:filter(context) abort
       return
     endif
 
-    let l:start = min(map(copy(l:matches), { _, match -> match.start }))
+    let l:start = min(map(copy(l:matches), 'v:val["start"]'))
     let l:input = strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1))
 
     let l:prefix_items = []
@@ -187,11 +188,9 @@ function! s:filter(context) abort
   endif
 
   " cancel vim's native filter behavior.
-  if pumvisible()
-    let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-    if l:start == s:cache.start && a:context.lnum == s:cache.lnum
-      call complete(s:cache.start, s:cache.items)
-    endif
+  let l:start = min(map(copy(l:matches), 'v:val.start'))
+  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
+    call complete(s:cache.start, s:cache.items)
   endif
 
   " throttle.
@@ -206,7 +205,7 @@ endfunction
 "
 function! s:get_matches() abort
   let l:matches = values(s:state.matches)
-  let l:matches = filter(l:matches, { _, match -> match.status ==# 'completed' || match.status ==# 'processing' })
+  let l:matches = filter(l:matches, 'v:val.status ==# "completed" || v:val.status ==# "processing"')
   let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
   return l:matches
 endfunction
