@@ -156,10 +156,10 @@ function! s:filter(context) abort
     return
   endif
 
-  " avoid screen flicker.
+  " cancel vim's native filter behavior.
   let l:matches = s:get_matches()
   let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-  if l:start == s:cache.start
+  if pumvisible() && l:start == s:cache.start
     call complete(s:cache.start, s:cache.items)
   endif
 
