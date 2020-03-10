@@ -85,8 +85,12 @@ function! s:update(context, source) abort
   let l:match.start = l:start
   let l:match.items = []
   call a:source.complete(
-  \   extend({ 'start': l:start, 'input': l:input }, a:context, 'keep'),
-  \   s:create_callback(a:context, a:source, l:match.id)
+  \   extend({
+  \     'start': l:start,
+  \     'input': l:input,
+  \     'abort': s:create_abort_callback(a:context, a:source, l:match.id),
+  \   }, a:context, 'keep'),
+  \   s:create_complete_callback(a:context, a:source, l:match.id)
   \ )
 endfunction
 
@@ -108,6 +112,12 @@ function! s:filter(context) abort
 
     " compute items.
     let l:matches = s:get_matches()
+    if len(l:matches) == 0
+      call timer_stop(s:timer_id)
+      let s:timer_id = -1
+      return
+    endif
+
     let l:start = min(map(copy(l:matches), { _, match -> match.start }))
     let l:input = strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1))
 
@@ -158,21 +168,17 @@ function! s:filter(context) abort
   endif
 
   " cancel vim's native filter behavior.
-  let l:matches = s:get_matches()
   let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-  if pumvisible() && l:start == s:cache.start
+  if l:start == s:cache.start
     call complete(s:cache.start, s:cache.items)
+    redrawstatus
   endif
 
   " throttle.
   if s:timer_id != -1
     return
   endif
-
-  let s:timer_id = timer_start(
-  \   l:start != s:cache.start ? 80 : 160,
-  \   { -> l:ctx.callback(a:context) }
-  \ )
+  let s:timer_id = timer_start(200, { -> l:ctx.callback(a:context) })
 endfunction
 
 "
@@ -199,39 +205,45 @@ function! s:context() abort
 endfunction
 
 "
-" create_callback
+" create_complete_callback
 "
-function! s:create_callback(context, source, id) abort
+function! s:create_complete_callback(context, source, id) abort
   let l:ctx = {}
+  function! l:ctx.callback(context, source, id, match) abort
+    let l:context = s:context()
+    if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
+      return
+    endif
 
-  " callback.
-  function! l:ctx.callback(context, source, id, matches) abort
-    call s:on_complete(a:context, a:source, a:id, a:matches)
+    let l:match = get(s:state.matches, a:source.name, {})
+    if !has_key(l:match, 'id') || a:id < l:match.id
+      return
+    endif
+
+    let l:match.status = 'completed'
+    let l:match.lnum = a:context.lnum
+    let l:match.items = a:match.items
+    let l:match.incomplete = get(a:match, 'incomplete', v:false)
+
+    call s:filter(a:context)
   endfunction
 
-  return function(l:ctx.callback, [a:context, a:source, a:id], l:ctx)
+  return function(l:ctx.callback, [a:context, a:source, a:id])
 endfunction
 
 "
-" on_complete
+" create_abort_callback
 "
-function! s:on_complete(context, source, id, match) abort
-  let l:context = s:context()
-  if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
-    return
-  endif
-
-  let l:match = get(s:state.matches, a:source.name, {})
-  if !has_key(l:match, 'id') || a:id < l:match.id
-    return
-  endif
-
-  let l:match.status = 'completed'
-  let l:match.lnum = a:context.lnum
-  let l:match.items = a:match.items
-  let l:match.incomplete = get(a:match, 'incomplete', v:false)
-
-  call s:filter(a:context)
+function! s:create_abort_callback(context, source, id) abort
+  let l:ctx = {}
+  function! l:ctx.callback(context, source, id) abort
+    let l:match = get(s:state.matches, a:source.name, {})
+    if has_key(l:match, 'id')
+      let l:match.id = a:id + 1
+      let l:match.status = 'waiting'
+    endif
+  endfunction
+  return function(l:ctx.callback, [a:context, a:source, a:id])
 endfunction
 
 "

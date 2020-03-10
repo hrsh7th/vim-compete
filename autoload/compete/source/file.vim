@@ -17,10 +17,13 @@ endfunction
 function! s:complete(context, callback) abort
   let l:input = matchstr(a:context.before_line, '\%(\~/\|\./\|\.\./\|/\)\%([^/\\:\*?<>\|]*\)\%(/[^/\\:\*?<>\|]*\)*')
   let l:input = substitute(s:absolute(l:input), '[^/]*$', '', 'g')
-  let l:paths = globpath(l:input, '*', v:true, v:true)
+
+  if !isdirectory(l:input) && !filereadable(l:input)
+    return a:context.abort()
+  endif
 
   call a:callback({
-  \   'items': sort(map(l:paths, function('s:convert', [l:input])), function('s:sort'))
+  \   'items': sort(map(globpath(l:input, '*', v:true, v:true), function('s:convert', [l:input])), function('s:sort'))
   \ })
 endfunction
 

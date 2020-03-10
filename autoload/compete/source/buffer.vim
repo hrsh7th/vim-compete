@@ -13,7 +13,7 @@ function! compete#source#buffer#register() abort
   \   'name': 'buffer',
   \   'filetypes': ['*'],
   \   'priority': -2,
-  \   'pattern': s:token . '\+',
+  \   'pattern': s:token . '*',
   \   'complete': function('s:complete'),
   \ })
 endfunction
