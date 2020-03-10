@@ -1,10 +1,12 @@
 let s:error = 0
 let s:timer_id = -1
 let s:cache = {
+\   'lnum': -1,
 \   'start': -1,
 \   'items': [],
 \ }
 let s:state = {
+\   'changed': -1,
 \   'matches': {},
 \ }
 
@@ -18,6 +20,7 @@ function! compete#on_clear() abort
   \   'items': [],
   \ }
   let s:state = {
+  \   'changed': -1,
   \   'matches': {},
   \ }
 endfunction
@@ -29,6 +32,11 @@ function! compete#on_change() abort
   if s:error > 10
     return
   endif
+
+  if s:state.changed == b:changedtick
+    return
+  endif
+  let s:state.changed = b:changedtick
 
   try
     let l:context = s:context()
@@ -98,6 +106,11 @@ endfunction
 " filter
 "
 function! s:filter(context) abort
+  " mode check.
+  if mode()[0] !=# 'i'
+    return
+  endif
+
   " selected check.
   if pumvisible() && !empty(v:completed_item)
     call timer_stop(s:timer_id)
@@ -107,6 +120,11 @@ function! s:filter(context) abort
 
   let l:ctx = {}
   function! l:ctx.callback(context) abort
+    " mode check.
+    if mode()[0] !=# 'i'
+      return
+    endif
+
     call timer_stop(s:timer_id)
     let s:timer_id = -1
 
@@ -129,32 +147,35 @@ function! s:filter(context) abort
       let l:prefix = '^\V' . l:input
       let l:fuzzy = '^.*\V' . join(split(l:input, '\zs'), '\m.*\V')
 
-      for l:item in l:match.items
-        let l:word = l:short . l:item.word
-        if l:word =~ l:prefix
-          call add(l:prefix_items, extend({
-          \   'word': l:word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \ }, l:item, 'keep'))
-        elseif l:word =~ l:fuzzy
-          call add(l:fuzzy_items, extend({
-          \   'word': l:word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \ }, l:item, 'keep'))
-        endif
-      endfor
+      if strlen(l:input) >= 0
+        for l:item in l:match.items
+          let l:word = l:short . l:item.word
+          if l:word =~ l:prefix
+            call add(l:prefix_items, extend({
+            \   'word': l:word,
+            \   'abbr': get(l:item, 'abbr', l:item.word),
+            \ }, l:item, 'keep'))
+          elseif l:word =~ l:fuzzy
+            call add(l:fuzzy_items, extend({
+            \   'word': l:word,
+            \   'abbr': get(l:item, 'abbr', l:item.word),
+            \ }, l:item, 'keep'))
+          endif
+        endfor
+      else
+        let l:prefix_items += l:match.items
+      endif
     endfor
 
     let l:items = l:prefix_items + l:fuzzy_items
 
     " complete.
-    if mode()[0] ==# 'i'
-      call complete(l:start, l:items)
-      let s:cache = {
-      \   'start': l:start,
-      \   'items': l:items
-      \ }
-    endif
+    call complete(l:start, l:items)
+    let s:cache = {
+    \   'lnum': a:context.lnum,
+    \   'start': l:start,
+    \   'items': l:items
+    \ }
   endfunction
 
   " no completion candidates.
@@ -168,7 +189,7 @@ function! s:filter(context) abort
   " cancel vim's native filter behavior.
   if pumvisible()
     let l:start = min(map(copy(l:matches), { _, match -> match.start }))
-    if l:start == s:cache.start
+    if l:start == s:cache.start && a:context.lnum == s:cache.lnum
       call complete(s:cache.start, s:cache.items)
     endif
   endif
