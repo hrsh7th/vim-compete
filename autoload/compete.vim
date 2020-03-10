@@ -63,7 +63,7 @@ function! s:update(context, source) abort
   let l:input = matchstr(a:context.before_line, a:source.pattern . '$')
 
   if l:chars !=# ''
-    let l:start = strlen(a:context.before_line) + 2
+    let l:start = strlen(a:context.before_line) + 1
   elseif l:input !=# ''
     let l:start = (strlen(a:context.before_line) - strlen(l:input)) + 1
   else
@@ -103,6 +103,7 @@ function! s:filter(context) abort
 
   let l:ctx = {}
   function! l:ctx.callback(context) abort
+    call timer_stop(s:timer_id)
     let s:timer_id = -1
 
     " compute items.
