@@ -181,15 +181,7 @@ function! s:get_matches() abort
   let l:matches = values(s:state.matches)
   let l:matches = filter(l:matches, { _, match -> match.status ==# 'completed' || match.status ==# 'processing' })
   let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
-
-  let l:i = 0
-  for l:match in l:matches
-    if l:match.status !=# 'completed'
-      break
-    endif
-    let l:i += 1
-  endfor
-  return l:matches[0 : l:i - 1]
+  return l:matches
 endfunction
 
 "
