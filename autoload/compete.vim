@@ -102,18 +102,20 @@ function! s:filter(context) abort
   endif
 
   let l:ctx = {}
-  function! l:ctx.callback(context, matches, start) abort
+  function! l:ctx.callback(context) abort
     let s:timer_id = -1
 
     " compute items.
-    let l:input = strpart(a:context.before_line, a:start - 1, strlen(a:context.before_line) - (a:start - 1))
+    let l:matches = s:get_matches()
+    let l:start = min(map(copy(l:matches), { _, match -> match.start }))
+    let l:input = strpart(a:context.before_line, l:start - 1, strlen(a:context.before_line) - (l:start - 1))
 
     let l:prefix_items = []
     let l:fuzzy_items = []
 
-    for l:match in a:matches
+    for l:match in l:matches
       let l:source = compete#source#get_by_name(l:match.name)
-      let l:short = strpart(a:context.before_line, a:start - 1, l:match.start - a:start)
+      let l:short = strpart(a:context.before_line, l:start - 1, l:match.start - l:start)
 
       let l:prefix = '^\V' . l:input
       let l:fuzzy = '^.*\V' . join(split(l:input, '\zs'), '\m.*\V')
@@ -138,9 +140,9 @@ function! s:filter(context) abort
 
     " complete.
     if mode()[0] ==# 'i'
-      call complete(a:start, l:items)
+      call complete(l:start, l:items)
       let s:cache = {
-      \   'start': a:start,
+      \   'start': l:start,
       \   'items': l:items
       \ }
     endif
@@ -155,6 +157,7 @@ function! s:filter(context) abort
   endif
 
   " avoid screen flicker.
+  let l:matches = s:get_matches()
   let l:start = min(map(copy(l:matches), { _, match -> match.start }))
   if l:start == s:cache.start
     call complete(s:cache.start, s:cache.items)
@@ -167,7 +170,7 @@ function! s:filter(context) abort
 
   let s:timer_id = timer_start(
   \   l:start != s:cache.start ? 80 : 160,
-  \   { -> l:ctx.callback(a:context, l:matches, l:start) }
+  \   { -> l:ctx.callback(a:context) }
   \ )
 endfunction
 
