@@ -197,7 +197,7 @@ function! s:filter(context) abort
   if s:timer_id != -1
     return
   endif
-  let s:timer_id = timer_start(200, { -> l:ctx.callback(a:context) })
+  let s:timer_id = timer_start(100, { -> l:ctx.callback(a:context) })
 endfunction
 
 "
@@ -283,7 +283,7 @@ function! s:get_before_char() abort
   let l:lnum = l:current_lnum
   while l:lnum > 0
     if l:lnum == l:current_lnum
-      let l:text = getline('.')[0 : -2]
+      let l:text = getline('.')[0 : col('.') - 2]
     else
       let l:text = getline(l:lnum)
     endif
