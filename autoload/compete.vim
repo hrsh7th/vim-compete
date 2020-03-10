@@ -158,7 +158,6 @@ function! s:filter(context) abort
   let l:start = min(map(copy(l:matches), { _, match -> match.start }))
   if l:start == s:cache.start
     call complete(s:cache.start, s:cache.items)
-    redraw
   endif
 
   " throttle.
