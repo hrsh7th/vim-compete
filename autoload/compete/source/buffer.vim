@@ -1,3 +1,5 @@
+let g:compete_source_buffer_max = 1000
+
 let s:keywords = {}
 let s:token = '\%(\w\%(\w\|:\|\-\|->\)*\)'
 
@@ -33,17 +35,23 @@ endfunction
 " cache
 "
 function! s:cache() abort
-  let l:above = reverse(getline(1, line('.')))
-  let l:below = getline(line('.') + 1, '$')
-  let l:lines = []
+  let l:lnum = line('.')
+  let l:above_max = min([1, l:lnum - g:compete_source_buffer_max])
+  let l:below_max = max([line('$'), l:lnum + g:compete_source_buffer_max + 1])
+
+  let l:above = reverse(getline(l:above_max, l:lnum))
+  let l:below = getline(l:lnum + 1, l:below_max)
+
   let l:above_len = len(l:above)
   let l:below_len = len(l:below)
   let l:min_len = min([l:above_len, l:below_len])
 
+  let l:lines = []
   for l:i in range(0, l:min_len - 1)
     call add(l:lines, l:above[l:i])
     call add(l:lines, l:below[l:i])
   endfor
+
   if l:above_len > l:min_len
     let l:lines += l:above[l:min_len : -1]
   endif

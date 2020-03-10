@@ -110,6 +110,7 @@ function! s:filter(context) abort
 
     let l:prefix_items = []
     let l:fuzzy_items = []
+
     for l:match in a:matches
       let l:source = compete#source#get_by_name(l:match.name)
       let l:short = strpart(a:context.before_line, a:start - 1, l:match.start - a:start)
