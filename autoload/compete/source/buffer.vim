@@ -18,6 +18,7 @@ function! compete#source#buffer#register() abort
   \ })
 endfunction
 
+
 "
 " complete
 "
@@ -36,8 +37,8 @@ endfunction
 "
 function! s:cache() abort
   let l:lnum = line('.')
-  let l:min_above = min([1, l:lnum - g:compete_source_buffer_max])
-  let l:max_below = max([line('$'), l:lnum + g:compete_source_buffer_max + 1])
+  let l:min_above = max([1, l:lnum - g:compete_source_buffer_max])
+  let l:max_below = min([line('$'), l:lnum + g:compete_source_buffer_max + 1])
 
   let l:above = reverse(getline(l:min_above, l:lnum))
   let l:below = getline(l:lnum + 1, l:max_below)
@@ -63,7 +64,7 @@ function! s:cache() abort
   let l:unique = {}
 
   let s:keywords[l:bufnr] = []
-  for l:keyword in split(join(l:lines, ' '), s:token . '\zs.\{-}\ze' . printf('\%($\|%s\)', s:token))
+  for l:keyword in split(join(l:lines, ' '), s:token . '*' . '\zs.\{-}\ze' . printf('\%($\|%s\)', s:token . '*'))
     let l:keyword = trim(l:keyword)
     if len(l:keyword) > 2 && !has_key(l:unique, l:keyword)
       if !has_key(l:unique, l:keyword)
