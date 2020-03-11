@@ -54,6 +54,7 @@ function! compete#on_change() abort
     endfor
     call s:filter(l:context)
   catch /.*/
+    echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
     let s:error += 1
   endtry
 endfunction
@@ -107,7 +108,7 @@ function! s:trigger(context, source) abort
   endif
 
   " avoid request when start position does not changed.
-  if l:start == l:match.start && l:match.incomplete isnot v:true
+  if l:start == l:match.start && !l:match.incomplete
     return
   endif
 
