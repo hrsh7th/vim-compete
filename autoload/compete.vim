@@ -29,6 +29,7 @@ endfunction
 " compete#on_change
 "
 function! compete#on_change() abort
+  " error check.
   if s:error > 10
     return
   endif
@@ -44,6 +45,7 @@ function! compete#on_change() abort
     return
   endif
 
+  " process.
   try
     let l:context = s:context()
     call s:keep_pum(l:context)
@@ -68,7 +70,7 @@ function! s:keep_pum(context) abort
 
   " cancel vim's native filter behavior.
   let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
+  if pumvisible() && l:start == s:cache.start && a:context.lnum == s:cache.lnum
     call complete(s:cache.start, s:cache.items)
   endif
 endfunction
@@ -90,12 +92,12 @@ function! s:trigger(context, source) abort
   endif
   let l:match = s:state.matches[a:source.name]
 
-  let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
   let l:input = matchstr(a:context.before_line, a:source.pattern . '$')
-  if l:chars !=# ''
-    let l:start = strlen(a:context.before_line) + 1
-  elseif l:input !=# ''
+  let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
+  if l:input !=# ''
     let l:start = (strlen(a:context.before_line) - strlen(l:input)) + 1
+  elseif l:chars !=# ''
+    let l:start = strlen(a:context.before_line) + 1
   else
     " if input/chars doesn't match and position was changed, discard recent items.
     if l:match.start != strlen(a:context.before_line) + 1

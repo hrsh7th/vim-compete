@@ -14,7 +14,7 @@ function! compete#source#register(source) abort
 
   let s:id += 1
   let a:source.filetypes = get(a:source, 'filetypes', ['*'])
-  let a:source.pattern = get(a:source, 'pattern', compete#default#get_token_pattern())
+  let a:source.pattern = get(a:source, 'pattern', compete#default#get_token_pattern() . '*')
   let a:source.trigger_chars = get(a:source, 'trigger_chars', [])
   let s:sources[s:id] = a:source
   return s:id

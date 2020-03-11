@@ -36,11 +36,11 @@ endfunction
 "
 function! s:cache() abort
   let l:lnum = line('.')
-  let l:above_max = min([1, l:lnum - g:compete_source_buffer_max])
-  let l:below_max = max([line('$'), l:lnum + g:compete_source_buffer_max + 1])
+  let l:min_above = min([1, l:lnum - g:compete_source_buffer_max])
+  let l:max_below = max([line('$'), l:lnum + g:compete_source_buffer_max + 1])
 
-  let l:above = reverse(getline(l:above_max, l:lnum))
-  let l:below = getline(l:lnum + 1, l:below_max)
+  let l:above = reverse(getline(l:min_above, l:lnum))
+  let l:below = getline(l:lnum + 1, l:max_below)
 
   let l:above_len = len(l:above)
   let l:below_len = len(l:below)
