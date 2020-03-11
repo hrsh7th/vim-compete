@@ -48,10 +48,10 @@ function! compete#on_change() abort
   " process.
   try
     let l:context = s:context()
-    call s:keep_pum(l:context)
     for l:source in compete#source#find()
       call s:trigger(l:context, l:source)
     endfor
+    call s:keep_pum(l:context)
     call s:filter(l:context)
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
@@ -71,7 +71,7 @@ function! s:keep_pum(context) abort
 
   " cancel vim's native filter behavior.
   let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if pumvisible() && l:start == s:cache.start && a:context.lnum == s:cache.lnum
+  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
     call complete(s:cache.start, s:cache.items)
   endif
 endfunction
