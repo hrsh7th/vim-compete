@@ -105,10 +105,10 @@ function! s:trigger(context, source) abort
 
   let l:input = matchstr(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
-  if l:input !=# ''
-    let l:start = (strlen(a:context.before_line) - strlen(l:input)) + 1
-  elseif l:chars !=# ''
+  if l:chars !=# ''
     let l:start = strlen(a:context.before_line) + 1
+  elseif l:input !=# ''
+    let l:start = (strlen(a:context.before_line) - strlen(l:input)) + 1
   else
     " if input/chars doesn't match and position was changed, discard recent items.
     if l:match.start != strlen(a:context.before_line) + 1
@@ -136,7 +136,6 @@ function! s:trigger(context, source) abort
   \   s:create_complete_callback(a:context, a:source, l:match.id)
   \ )
 endfunction
-
 
 "
 " filter
@@ -172,7 +171,7 @@ function! s:filter(context) abort
 
       if strlen(l:input) >= 0
         for l:item in l:match.items
-          let l:word = l:short . l:item.word
+          let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
           if l:word =~ l:prefix
             call add(l:prefix_items, extend({
             \   'word': l:word,
