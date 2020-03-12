@@ -63,7 +63,7 @@ function! s:cache() abort
 
   let l:pattern = compete#pattern()
   let s:keywords[l:bufnr] = []
-  for l:keyword in split(join(l:lines, ' '), printf('\%(^\|%s\)', l:pattern) . '\zs.\{-}\ze' . printf('\%($\|%s\)', l:pattern))
+  for l:keyword in split(' ' . join(l:lines, ' ') . ' ', l:pattern . '\zs.\{-}\ze' . l:pattern)
     let l:keyword = trim(l:keyword)
     if len(l:keyword) > 2 && !has_key(l:unique, l:keyword)
       if !has_key(l:unique, l:keyword)
