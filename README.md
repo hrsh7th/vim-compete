@@ -25,6 +25,13 @@ Type: boolean
 You can disable compete via this value.
 
 
+#### `g:compete_fuzzy = v:true`
+
+Type: boolean
+
+You can disable fuzzy matching via this value.
+
+
 #### `g:compete_patterns = { ... }`
 
 Type: dict

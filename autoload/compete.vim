@@ -177,7 +177,7 @@ function! s:filter(context) abort
             \   'word': l:word,
             \   'abbr': get(l:item, 'abbr', l:item.word),
             \ }, l:item, 'keep'))
-          elseif l:word =~ l:fuzzy
+          elseif l:word =~ l:fuzzy && g:compete_fuzzy
             call add(l:fuzzy_items, extend({
             \   'word': l:word,
             \   'abbr': get(l:item, 'abbr', l:item.word),
