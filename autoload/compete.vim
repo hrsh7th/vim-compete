@@ -26,6 +26,16 @@ function! compete#on_clear() abort
 endfunction
 
 "
+" compete#pattern
+"
+function! compete#pattern(...) abort
+  let l:pattern = get(get(a:000, 0, {}), 'pattern', 0)
+  let l:pattern = (l:pattern is 0 ? get(g:compete_patterns, &filetype, 0) : l:pattern)
+  let l:pattern = (l:pattern is 0 ? s:get_pattern() : l:pattern)
+  return l:pattern
+endfunction
+
+"
 " compete#on_change
 "
 function! compete#on_change() abort
@@ -93,7 +103,7 @@ function! s:trigger(context, source) abort
   endif
   let l:match = s:state.matches[a:source.name]
 
-  let l:input = matchstr(a:context.before_line, a:source.pattern . '$')
+  let l:input = matchstr(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
   if l:input !=# ''
     let l:start = (strlen(a:context.before_line) - strlen(l:input)) + 1
@@ -126,6 +136,7 @@ function! s:trigger(context, source) abort
   \   s:create_complete_callback(a:context, a:source, l:match.id)
   \ )
 endfunction
+
 
 "
 " filter
@@ -208,19 +219,6 @@ function! s:get_matches() abort
 endfunction
 
 "
-" context
-"
-function! s:context() abort
-  return {
-  \   'bufnr': bufnr('%'),
-  \   'lnum': line('.'),
-  \   'col': col('.'),
-  \   'before_char': s:get_before_char(),
-  \   'before_line': getline('.')[0 : col('.') - 2],
-  \ }
-endfunction
-
-"
 " create_complete_callback
 "
 function! s:create_complete_callback(context, source, id) abort
@@ -281,6 +279,43 @@ function! s:ignore() abort
 endfunction
 
 "
+" context
+"
+function! s:context() abort
+  let l:lnum = line('.')
+  let l:col = col('.')
+  let l:before_line = getline('.')[0 : l:col - 2]
+  return {
+  \   'bufnr': bufnr('%'),
+  \   'lnum': l:lnum,
+  \   'col': l:col,
+  \   'before_char': s:get_before_char(l:lnum, l:before_line),
+  \   'before_line': l:before_line,
+  \ }
+endfunction
+
+"
+" get_before_char
+"
+function! s:get_before_char(lnum, before_line) abort
+  let l:lnum = a:lnum
+  while l:lnum > 0
+    if l:lnum == a:lnum
+      let l:text = a:before_line
+    else
+      let l:text = getline(l:lnum)
+    endif
+    let l:char = matchstr(l:text, '\([^[:blank:]]\)\ze\s*$')
+    if l:char !=# ''
+      return l:char
+    endif
+    let l:lnum -= 1
+  endwhile
+
+  return ''
+endfunction
+
+"
 " find
 "
 function! s:find(haystack, needle, ...) abort
@@ -290,25 +325,19 @@ function! s:find(haystack, needle, ...) abort
 endfunction
 
 "
-" get_before_char
+" get_pattern
 "
-function! s:get_before_char() abort
-  let l:current_lnum = line('.')
+let s:patterns = {}
+function! s:get_pattern() abort
+  if has_key(s:patterns, &iskeyword)
+    return s:patterns[&iskeyword]
+  endif
 
-  let l:lnum = l:current_lnum
-  while l:lnum > 0
-    if l:lnum == l:current_lnum
-      let l:text = getline('.')[0 : col('.') - 2]
-    else
-      let l:text = getline(l:lnum)
-    endif
-    let l:match = matchlist(l:text, '\([^[:blank:]]\)\s*$')
-    if get(l:match, 1, v:null) isnot v:null
-      return l:match[1]
-    endif
-    let l:lnum -= 1
-  endwhile
-
-  return ''
+  let l:keywords = split(&iskeyword, ',')
+  let l:keywords = filter(l:keywords, { _, k -> match(k, '\d\+-\d\+') == -1 })
+  let l:keywords = filter(l:keywords, { _, k -> k !=# '@' })
+  let l:pattern = '\%(' . join(map(l:keywords, { _, v -> '\V' . escape(v, '\') . '\m' }), '\|') . '\|\w\)*'
+  let s:patterns[&iskeyword] = l:pattern
+  return l:pattern
 endfunction
 

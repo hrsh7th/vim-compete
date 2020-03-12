@@ -4,6 +4,10 @@ endif
 let g:loaded_compete = v:true
 
 let g:compete_enable = get(g:, 'compete_enable', v:true)
+let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
+\   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|&\|\w\)\%(\w\|#\)*',
+\   'php': '\%(\$\|\w\)\%(\w\|\->\)*',
+\ }, 'keep')
 
 augroup compete
   autocmd!

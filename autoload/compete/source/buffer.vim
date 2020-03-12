@@ -1,7 +1,6 @@
 let g:compete_source_buffer_max = 1000
 
 let s:keywords = {}
-let s:token = compete#default#get_token_pattern()
 
 function! compete#source#buffer#register() abort
   augroup compete#source#buffer#register
@@ -13,7 +12,6 @@ function! compete#source#buffer#register() abort
   \   'name': 'buffer',
   \   'filetypes': ['*'],
   \   'priority': -2,
-  \   'pattern': s:token . '*',
   \   'complete': function('s:complete'),
   \ })
 endfunction
@@ -27,7 +25,7 @@ function! s:complete(context, callback) abort
   \   'items': map(copy(s:keywords[a:context.bufnr]), { _, keyword -> {
   \     'word': keyword,
   \     'abbr': keyword,
-  \     'menu': 'buffer'
+  \     'menu': '[b]'
   \   } })
   \ })
 endfunction
@@ -63,8 +61,9 @@ function! s:cache() abort
   let l:bufnr = bufnr('%')
   let l:unique = {}
 
+  let l:pattern = compete#pattern()
   let s:keywords[l:bufnr] = []
-  for l:keyword in split(join(l:lines, ' '), s:token . '*' . '\zs.\{-}\ze' . printf('\%($\|%s\)', s:token . '*'))
+  for l:keyword in split(join(l:lines, ' '), l:pattern . '\zs.\{-}\ze' . printf('\%($\|%s\)', l:pattern))
     let l:keyword = trim(l:keyword)
     if len(l:keyword) > 2 && !has_key(l:unique, l:keyword)
       if !has_key(l:unique, l:keyword)
