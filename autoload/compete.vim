@@ -196,7 +196,7 @@ function! s:filter(context) abort
   if s:timer_id != -1
     return
   endif
-  let s:timer_id = timer_start(pumvisible() ? g:compete_throttle : 0, { -> l:ctx.callback() })
+  let s:timer_id = timer_start(g:compete_throttle, { -> l:ctx.callback() })
 endfunction
 
 "
