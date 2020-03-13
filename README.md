@@ -62,7 +62,7 @@ Filepath completion.
   - `compete` aims to well handle it
 
 #### Async throttled filtering with no flicker
-- auto completion plugin does filtering items but vim's native completion feature does it too
+- auto completion plugin filter items but vim's native completion feature does it too
   - auto completion plugin should cancel vim's native completion feature to reduce flicker
   - for example, `compete` skips some user input to improve performance but screen does not flick
 
