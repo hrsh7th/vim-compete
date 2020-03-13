@@ -6,7 +6,6 @@ let s:cache = {
 \   'items': [],
 \ }
 let s:state = {
-\   'changed': -1,
 \   'matches': {},
 \ }
 
@@ -20,7 +19,6 @@ function! compete#on_clear() abort
   \   'items': [],
   \ }
   let s:state = {
-  \   'changed': -1,
   \   'matches': {},
   \ }
 endfunction
@@ -43,12 +41,6 @@ function! compete#on_change() abort
   if s:error > 10
     return
   endif
-
-  " changed check.
-  if s:state.changed == b:changedtick
-    return
-  endif
-  let s:state.changed = b:changedtick
 
   " ignore check.
   if s:ignore()
