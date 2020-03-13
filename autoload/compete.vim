@@ -115,10 +115,10 @@ function! s:trigger(context, source) abort
   endif
 
   let l:match.id += 1
-  let l:match.status = l:match.start == l:start ? 'completed' : 'processing'
   let l:match.lnum = a:context.lnum
   let l:match.start = l:start
-  let l:match.items = []
+  let l:match.status = l:match.start == l:start ? 'completed' : 'processing'
+  let l:match.items = l:match.start == l:start ? l:match.items : []
   call a:source.complete(
   \   extend({
   \     'start': l:start,
