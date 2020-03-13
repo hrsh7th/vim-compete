@@ -11,7 +11,7 @@ function! compete#source#buffer#register() abort
   call compete#source#register({
   \   'name': 'buffer',
   \   'filetypes': ['*'],
-  \   'priority': -2,
+  \   'priority': -1,
   \   'complete': function('s:complete'),
   \ })
 endfunction

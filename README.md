@@ -40,6 +40,21 @@ You can specify keyword patterns per filetype.
 The key is filetype and value is vim-regex.
 
 
+# built-in source
+
+#### buffer
+
+Priority: -1
+
+Keyword completion.
+
+#### file
+
+Priority: 100
+
+Filepath completion.
+
+
 # feature
 
 #### Well handling multi sources

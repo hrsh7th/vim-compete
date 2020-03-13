@@ -85,7 +85,7 @@ function! s:trigger(context, source) abort
   if !has_key(s:state.matches, a:source.name)
     let s:state.matches[a:source.name] = {
     \   'id': 0,
-    \   'name': a:source.name,
+    \   'source': a:source,
     \   'status': 'waiting',
     \   'lnum': -1,
     \   'start': -1,
@@ -155,11 +155,10 @@ function! s:filter(context) abort
     let l:fuzzy_items = []
 
     for l:match in l:matches
-      let l:source = compete#source#get_by_name(l:match.name)
       let l:short = strpart(l:context.before_line, l:start - 1, l:match.start - l:start)
 
       let l:prefix = '^\V' . l:input
-      let l:fuzzy = '^.*\V' . join(split(l:input, '\zs'), '\m.*\V')
+      let l:fuzzy = '^\V' . l:short . join(split(l:input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
 
       if strlen(l:input) >= 0
         for l:item in l:match.items
@@ -205,7 +204,7 @@ endfunction
 function! s:get_matches() abort
   let l:matches = values(s:state.matches)
   let l:matches = filter(l:matches, 'v:val.status ==# "completed" || v:val.status ==# "processing"')
-  let l:matches = sort(l:matches, { a, b -> get(b, 'priority', 0) - get(a, 'priority', 0) })
+  let l:matches = sort(l:matches, { a, b -> get(b.source, 'priority', 0) - get(a.source, 'priority', 0) })
   return l:matches
 endfunction
 
