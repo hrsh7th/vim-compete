@@ -1,11 +1,12 @@
 let s:error = 0
-let s:timer_id = -1
 let s:cache = {
 \   'lnum': -1,
 \   'start': -1,
 \   'items': [],
 \ }
 let s:state = {
+\   'changedtick': -1,
+\   'timer_id': -1,
 \   'matches': {},
 \ }
 
@@ -13,12 +14,15 @@ let s:state = {
 " on_clear
 "
 function! compete#on_clear() abort
+  call timer_stop(s:state.timer_id)
   let s:cache = {
   \   'lnum': -1,
   \   'start': -1,
   \   'items': [],
   \ }
   let s:state = {
+  \   'changedtick': -1,
+  \   'timer_id': -1,
   \   'matches': {},
   \ }
 endfunction
@@ -41,6 +45,12 @@ function! compete#on_change() abort
   if s:error > 10
     return
   endif
+
+  " changedtick check.
+  if s:state.changedtick == b:changedtick
+    return
+  endif
+  let s:state.changedtick = b:changedtick
 
   " ignore check.
   if s:ignore()
@@ -73,8 +83,11 @@ function! s:keep_pum(context) abort
 
   " cancel vim's native filter behavior.
   let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
+  if pumvisible() && l:start == s:cache.start && a:context.lnum == s:cache.lnum
     call complete(s:cache.start, s:cache.items)
+  else
+    call timer_stop(s:state.timer_id)
+    let s:state.timer_id = -1
   endif
 endfunction
 
@@ -129,13 +142,14 @@ function! s:trigger(context, source) abort
   \ )
 endfunction
 
+
 "
 " filter
 "
 function! s:filter(context) abort
   let l:ctx = {}
   function! l:ctx.callback() abort
-    let s:timer_id = -1
+    let s:state.timer_id = -1
 
     if s:ignore()
       return
@@ -154,7 +168,7 @@ function! s:filter(context) abort
     let l:prefix_items = []
     let l:fuzzy_items = []
 
-    for l:match in l:matches
+    for l:match in filter(l:matches, { _, match -> match.status ==# 'completed' })
       let l:short = strpart(l:context.before_line, l:start - 1, l:match.start - l:start)
 
       let l:prefix = '^\V' . l:input
@@ -192,11 +206,12 @@ function! s:filter(context) abort
   endfunction
 
   " throttle.
-  if s:timer_id != -1
+  if s:state.timer_id != -1
     return
   endif
-  let s:timer_id = timer_start(g:compete_throttle, { -> l:ctx.callback() })
+  let s:state.timer_id = timer_start(pumvisible() ? g:compete_throttle : 50, { -> l:ctx.callback() })
 endfunction
+
 
 "
 " get_matches
@@ -214,13 +229,13 @@ endfunction
 function! s:create_complete_callback(context, source, id) abort
   let l:ctx = {}
   function! l:ctx.callback(context, source, id, match) abort
-    let l:context = s:context()
-    if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
+    let l:match = get(s:state.matches, a:source.name, {})
+    if !has_key(l:match, 'id') || a:id < l:match.id
       return
     endif
 
-    let l:match = get(s:state.matches, a:source.name, {})
-    if !has_key(l:match, 'id') || a:id < l:match.id
+    let l:context = s:context()
+    if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
       return
     endif
 
@@ -253,7 +268,7 @@ endfunction
 "
 " ignore
 "
-function! s:ignore() abort
+function! s:ignore(...) abort
   " mode check.
   if mode()[0] !=# 'i'
     return v:true
