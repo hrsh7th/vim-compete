@@ -47,15 +47,19 @@ function! s:cache() abort
 
   let l:lines = []
   for l:i in range(0, l:min_len - 1)
-    call add(l:lines, l:above[l:i])
-    call add(l:lines, l:below[l:i])
+    if strlen(l:above[l:i]) < 200
+      call add(l:lines, l:above[l:i])
+    endif
+    if strlen(l:below[l:i]) < 200
+      call add(l:lines, l:below[l:i])
+    endif
   endfor
 
   if l:above_len > l:min_len
-    let l:lines += l:above[l:min_len : -1]
+    let l:lines += filter(l:above[l:min_len : -1], 'strlen(v:val) < 200')
   endif
   if l:below_len > l:min_len
-    let l:lines += l:below[l:min_len : -1]
+    let l:lines += filter(l:below[l:min_len : -1], 'strlen(v:val) < 200')
   endif
 
   let l:bufnr = bufnr('%')

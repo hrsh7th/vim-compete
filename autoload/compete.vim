@@ -84,7 +84,7 @@ function! s:keep_pum(context) abort
   " cancel vim's native filter behavior.
   let l:start = min(map(copy(l:matches), 'v:val.start'))
   if pumvisible() && l:start == s:cache.start && a:context.lnum == s:cache.lnum
-    call complete(s:cache.start, s:cache.items)
+    call complete(s:cache.start, complete_info(['items']).items)
   else
     call timer_stop(s:state.timer_id)
     let s:state.timer_id = -1
