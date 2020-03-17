@@ -171,18 +171,17 @@ function! s:filter(context) abort
     for l:match in filter(l:matches, { _, match -> match.status ==# 'completed' })
       let l:short = strpart(l:context.before_line, l:start - 1, l:match.start - l:start)
 
-      let l:prefix = '^\V' . l:input
       let l:fuzzy = '^\V' . l:short . join(split(l:input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
 
       if strlen(l:input) >= 0
         for l:item in l:match.items
           let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
-          if l:word =~ l:prefix
+          if stridx(l:word, l:input) == 0
             call add(l:prefix_items, extend({
             \   'word': l:word,
             \   'abbr': get(l:item, 'abbr', l:item.word),
             \ }, l:item, 'keep'))
-          elseif l:word =~ l:fuzzy && g:compete_fuzzy
+          elseif g:compete_fuzzy && l:word =~ l:fuzzy
             call add(l:fuzzy_items, extend({
             \   'word': l:word,
             \   'abbr': get(l:item, 'abbr', l:item.word),
