@@ -15,6 +15,7 @@ let s:state = {
 "
 function! compete#on_clear() abort
   call timer_stop(s:state.timer_id)
+  call compete#menu#hide()
   let s:cache = {
   \   'lnum': -1,
   \   'start': -1,
@@ -75,9 +76,12 @@ endfunction
 " keep_pum
 "
 function! s:keep_pum(context) abort
+  return
+
   " no completion candidates.
   let l:matches = s:get_matches()
   if len(l:matches) == 0
+      call compete#menu#hide()
     return
   endif
 
@@ -152,12 +156,14 @@ function! s:filter(context) abort
     let s:state.timer_id = -1
 
     if s:ignore()
+      call compete#menu#hide()
       return
     endif
 
     " no completion candidates.
     let l:matches = s:get_matches()
     if len(l:matches) == 0
+      call compete#menu#hide()
       return
     endif
 
@@ -197,7 +203,8 @@ function! s:filter(context) abort
     let l:items = l:prefix_items + l:fuzzy_items
 
     " complete.
-    call complete(l:start, l:items)
+    call compete#menu#show(l:start, l:items)
+    " call complete(l:start, l:items)
     let s:cache = {
     \   'lnum': l:context.lnum,
     \   'start': l:start,

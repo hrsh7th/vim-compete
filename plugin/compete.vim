@@ -11,6 +11,16 @@ let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'php': '\%(\$\|\w\)\%(\w\|\->\)*',
 \ }, 'keep')
 
+"inoremap <Plug>(compete-select-next) <C-r>=<SID>select(+1)<CR>
+"inoremap <Plug>(compete-select-prev) <C-r>=<SID>select(-1)<CR>
+"function! s:select(offset) abort
+"  call compete#menu#select(a:offset)
+"  return ''
+"endfunction
+"
+"imap <expr> <C-n> "\<Plug>(compete-select-next)"
+"imap <expr> <C-p> "\<Plug>(compete-select-prev)"
+
 augroup compete
   autocmd!
   autocmd InsertLeave * call s:on_insert_leave()
