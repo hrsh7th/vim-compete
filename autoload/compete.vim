@@ -53,46 +53,25 @@ function! compete#on_change() abort
   endif
   let s:state.changedtick = b:changedtick
 
-  " ignore check.
-  if s:ignore()
-    return
-  endif
-
   " process.
   try
     let l:context = s:context()
     for l:source in compete#source#find()
       call s:trigger(l:context, l:source)
     endfor
-    call s:keep_pum(l:context)
-    call s:filter(l:context)
+
+    let l:matches = s:get_matches()
+    if len(l:matches) == 0
+      call compete#menu#hide()
+    else
+      if !compete#menu#selected()
+        call s:filter(l:context)
+      endif
+    endif
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
     let s:error += 1
   endtry
-endfunction
-
-"
-" keep_pum
-"
-function! s:keep_pum(context) abort
-  return
-
-  " no completion candidates.
-  let l:matches = s:get_matches()
-  if len(l:matches) == 0
-      call compete#menu#hide()
-    return
-  endif
-
-  " cancel vim's native filter behavior.
-  let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if pumvisible() && l:start == s:cache.start && a:context.lnum == s:cache.lnum
-    call complete(s:cache.start, complete_info(['items']).items)
-  else
-    call timer_stop(s:state.timer_id)
-    let s:state.timer_id = -1
-  endif
 endfunction
 
 "
@@ -146,7 +125,6 @@ function! s:trigger(context, source) abort
   \ )
 endfunction
 
-
 "
 " filter
 "
@@ -155,8 +133,13 @@ function! s:filter(context) abort
   function! l:ctx.callback() abort
     let s:state.timer_id = -1
 
-    if s:ignore()
-      call compete#menu#hide()
+    " mode check.
+    if mode()[0] !=# 'i'
+      return
+    endif
+
+    " selected check.
+    if compete#menu#selected()
       return
     endif
 
@@ -270,24 +253,6 @@ function! s:create_abort_callback(context, source, id) abort
     endif
   endfunction
   return function(l:ctx.callback, [a:context, a:source, a:id])
-endfunction
-
-"
-" ignore
-"
-function! s:ignore(...) abort
-  " mode check.
-  if mode()[0] !=# 'i'
-    return v:true
-  endif
-
-  " selected check.
-  let l:complete_info = complete_info(['selected'])
-  if l:complete_info.selected != -1
-    return v:true
-  endif
-
-  return v:false
 endfunction
 
 "
