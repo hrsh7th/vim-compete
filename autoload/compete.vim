@@ -54,6 +54,8 @@ function! compete#on_change() abort
 
   " ignore check.
   if s:ignore()
+    call timer_stop(s:state.timer_id)
+    let s:state.timer_id = -1
     return
   endif
 
@@ -78,16 +80,15 @@ function! s:keep_pum(context) abort
   " no completion candidates.
   let l:matches = s:get_matches()
   if len(l:matches) == 0
+    call timer_stop(s:state.timer_id)
+    let s:state.timer_id = -1
     return
   endif
 
   " cancel vim's native filter behavior.
   let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if pumvisible() && l:start == s:cache.start && a:context.lnum == s:cache.lnum
+  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
     call complete(s:cache.start, complete_info(['items']).items)
-  else
-    call timer_stop(s:state.timer_id)
-    let s:state.timer_id = -1
   endif
 endfunction
 
@@ -118,6 +119,10 @@ function! s:trigger(context, source) abort
     " if input/chars doesn't match and position was changed, discard recent items.
     if l:match.start != strlen(a:context.before_line) + 1
       let l:match.status = 'waiting'
+      let l:match.items = []
+      let l:match.lnum = -1
+      let l:match.start = -1
+      let l:match.incomplete = v:false
     endif
     return
   endif
@@ -129,9 +134,9 @@ function! s:trigger(context, source) abort
 
   let l:match.id += 1
   let l:match.lnum = a:context.lnum
-  let l:match.start = l:start
   let l:match.status = l:match.start == l:start ? 'completed' : 'processing'
   let l:match.items = l:match.start == l:start ? l:match.items : []
+  let l:match.start = l:start
   call a:source.complete(
   \   extend({
   \     'start': l:start,
@@ -147,6 +152,10 @@ endfunction
 " filter
 "
 function! s:filter(context) abort
+  if s:state.timer_id != -1
+    return
+  endif
+
   let l:ctx = {}
   function! l:ctx.callback() abort
     let s:state.timer_id = -1
@@ -173,7 +182,7 @@ function! s:filter(context) abort
 
       let l:fuzzy = '^\V' . l:short . join(split(l:input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
 
-      if strlen(l:input) >= 0
+      if strlen(l:input) > 0
         for l:item in l:match.items
           let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
           if stridx(l:word, l:input) == 0
@@ -196,7 +205,7 @@ function! s:filter(context) abort
     let l:items = l:prefix_items + l:fuzzy_items
 
     " complete.
-    call complete(l:start, l:items)
+    call complete(l:start, l:items[0 : min([g:complete_item_count, len(l:items) - 1])])
     let s:cache = {
     \   'lnum': l:context.lnum,
     \   'start': l:start,
@@ -204,10 +213,6 @@ function! s:filter(context) abort
     \ }
   endfunction
 
-  " throttle.
-  if s:state.timer_id != -1
-    return
-  endif
   let s:state.timer_id = timer_start(pumvisible() ? g:compete_throttle : 50, { -> l:ctx.callback() })
 endfunction
 
@@ -270,12 +275,16 @@ endfunction
 function! s:ignore(...) abort
   " mode check.
   if mode()[0] !=# 'i'
+    call timer_stop(s:state.timer_id)
+    let s:state.timer_id = -1
     return v:true
   endif
 
   " selected check.
   let l:complete_info = complete_info(['selected'])
   if l:complete_info.selected != -1
+    call timer_stop(s:state.timer_id)
+    let s:state.timer_id = -1
     return v:true
   endif
 
