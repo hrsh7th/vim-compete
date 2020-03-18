@@ -66,7 +66,7 @@ function! compete#on_change() abort
     endfor
     if len(l:starts) > 0
       let s:state.start = min(l:starts)
-      let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start + 1)
+      let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start)
       call s:filter(l:context)
     else
       let s:state.start = -1
