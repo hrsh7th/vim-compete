@@ -6,7 +6,7 @@ let s:state = {
 \   'start': -1,
 \   'input': '',
 \   'items': [],
-\   'time': reltime(),
+\   'times': [],
 \   'matches': {},
 \ }
 
@@ -19,10 +19,11 @@ function! compete#on_clear() abort
   \   'start': -1,
   \   'input': '',
   \   'items': [],
-  \   'time': reltime(),
+  \   'times': [],
   \   'matches': {},
   \ }
 endfunction
+
 
 "
 " compete#pattern
@@ -49,7 +50,7 @@ function! compete#on_change() abort
   endif
   let s:state.changedtick = b:changedtick
 
-  if complete_info(['selected']).selected != -1
+  if mode()[0] !=# 'i' || complete_info(['selected']).selected != -1
     return
   endif
 
@@ -70,6 +71,8 @@ function! compete#on_change() abort
     else
       let s:state.start = -1
       let s:state.input = ''
+      let s:state.items = []
+      let s:state.times = []
     endif
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
@@ -141,6 +144,10 @@ endfunction
 function! s:filter(context) abort
   let l:ctx = {}
   function! l:ctx.callback() abort
+    if mode()[0] !=# 'i'
+      return
+    endif
+
     if s:state.start == -1
       return
     endif
@@ -158,7 +165,7 @@ function! s:filter(context) abort
         let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
 
         " pass through
-        if strlen(s:state.input) == 0
+        if s:state.input ==# ''
           let l:item_count += 1
           call add(l:prefix_items, extend({
           \   'word': l:word,
@@ -188,7 +195,7 @@ function! s:filter(context) abort
       endfor
     endfor
 
-    let s:state.time = reltime()
+    let s:state.times = reltime()
     let s:state.items = l:prefix_items + l:fuzzy_items
 
     " complete.
@@ -203,7 +210,7 @@ function! s:filter(context) abort
   " clear recent debounce timer.
   call timer_stop(s:filter_timer_id)
 
-  let l:time = len(s:state.time) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.time)) * 1000
+  let l:time = len(s:state.times) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.times)) * 1000
   if l:time >= g:compete_throttle
     call l:ctx.callback()
   else
