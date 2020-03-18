@@ -1,12 +1,12 @@
 let s:error = 0
-let s:cache = {
-\   'lnum': -1,
-\   'start': -1,
-\   'items': [],
-\ }
+let s:filter_timer_id = -1
+let s:complete_timer_id = -1
 let s:state = {
 \   'changedtick': -1,
-\   'timer_id': -1,
+\   'start': -1,
+\   'input': '',
+\   'items': [],
+\   'time': reltime(),
 \   'matches': {},
 \ }
 
@@ -14,15 +14,12 @@ let s:state = {
 " on_clear
 "
 function! compete#on_clear() abort
-  call timer_stop(s:state.timer_id)
-  let s:cache = {
-  \   'lnum': -1,
-  \   'start': -1,
-  \   'items': [],
-  \ }
   let s:state = {
   \   'changedtick': -1,
-  \   'timer_id': -1,
+  \   'start': -1,
+  \   'input': '',
+  \   'items': [],
+  \   'time': reltime(),
   \   'matches': {},
   \ }
 endfunction
@@ -52,44 +49,32 @@ function! compete#on_change() abort
   endif
   let s:state.changedtick = b:changedtick
 
-  " ignore check.
-  if s:ignore()
-    call timer_stop(s:state.timer_id)
-    let s:state.timer_id = -1
+  if complete_info(['selected']).selected != -1
     return
   endif
 
   " process.
   try
     let l:context = s:context()
+    let l:starts = []
     for l:source in compete#source#find()
-      call s:trigger(l:context, l:source)
+      let l:start = s:trigger(l:context, l:source)
+      if l:start >= 1
+        call add(l:starts, l:start)
+      endif
     endfor
-    call s:keep_pum(l:context)
-    call s:filter(l:context)
+    if len(l:starts) > 0
+      let s:state.start = min(l:starts)
+      let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start + 1)
+      call s:filter(l:context)
+    else
+      let s:state.start = -1
+      let s:state.input = ''
+    endif
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
     let s:error += 1
   endtry
-endfunction
-
-"
-" keep_pum
-"
-function! s:keep_pum(context) abort
-  " no completion candidates.
-  let l:matches = s:get_matches()
-  if len(l:matches) == 0
-    call timer_stop(s:state.timer_id)
-    let s:state.timer_id = -1
-    return
-  endif
-
-  " cancel vim's native filter behavior.
-  let l:start = min(map(copy(l:matches), 'v:val.start'))
-  if l:start == s:cache.start && a:context.lnum == s:cache.lnum
-    call complete(s:cache.start, complete_info(['items']).items)
-  endif
 endfunction
 
 "
@@ -112,24 +97,26 @@ function! s:trigger(context, source) abort
   let l:input = matchstr(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
   if l:chars !=# ''
-    let l:start = strlen(a:context.before_line) + 1
+    let l:start = a:context.col
   elseif l:input !=# ''
-    let l:start = (strlen(a:context.before_line) - strlen(l:input)) + 1
+    let l:start = a:context.col - strlen(l:input)
   else
     " if input/chars doesn't match and position was changed, discard recent items.
-    if l:match.start != strlen(a:context.before_line) + 1
+    if l:match.start != a:context.col
+      let l:match.id += 1
       let l:match.status = 'waiting'
       let l:match.items = []
       let l:match.lnum = -1
       let l:match.start = -1
       let l:match.incomplete = v:false
+      return -1
     endif
-    return
+    return l:match.start
   endif
 
   " avoid request when start position does not changed.
   if l:start == l:match.start && !l:match.incomplete
-    return
+    return l:start
   endif
 
   let l:match.id += 1
@@ -145,77 +132,84 @@ function! s:trigger(context, source) abort
   \   }, a:context, 'keep'),
   \   s:create_complete_callback(a:context, a:source, l:match.id)
   \ )
+  return l:match.start
 endfunction
-
 
 "
 " filter
 "
 function! s:filter(context) abort
-  if s:state.timer_id != -1
-    return
-  endif
-
   let l:ctx = {}
   function! l:ctx.callback() abort
-    let s:state.timer_id = -1
-
-    if s:ignore()
-      return
-    endif
-
-    " no completion candidates.
-    let l:matches = s:get_matches()
-    if len(l:matches) == 0
+    if s:state.start == -1
       return
     endif
 
     let l:context = s:context()
-    let l:start = min(map(copy(l:matches), 'v:val.start'))
-    let l:input = strpart(l:context.before_line, l:start - 1, strlen(l:context.before_line) - (l:start - 1))
-
     let l:prefix_items = []
     let l:fuzzy_items = []
+    let l:item_count = 0
 
-    for l:match in filter(l:matches, { _, match -> match.status ==# 'completed' })
-      let l:short = strpart(l:context.before_line, l:start - 1, l:match.start - l:start)
+    for l:match in filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
+      let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
+      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
 
-      let l:fuzzy = '^\V' . l:short . join(split(l:input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+      for l:item in l:match.items
+        let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
 
-      if strlen(l:input) > 0
-        for l:item in l:match.items
-          let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
-          if stridx(l:word, l:input) == 0
-            call add(l:prefix_items, extend({
-            \   'word': l:word,
-            \   'abbr': get(l:item, 'abbr', l:item.word),
-            \ }, l:item, 'keep'))
-          elseif g:compete_fuzzy && l:word =~ l:fuzzy
-            call add(l:fuzzy_items, extend({
-            \   'word': l:word,
-            \   'abbr': get(l:item, 'abbr', l:item.word),
-            \ }, l:item, 'keep'))
-          endif
-        endfor
-      else
-        let l:prefix_items += l:match.items
-      endif
+        " pass through
+        if strlen(s:state.input) == 0
+          let l:item_count += 1
+          call add(l:prefix_items, extend({
+          \   'word': l:word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \ }, l:item, 'keep'))
+
+        " match prefix.
+        elseif stridx(l:word, s:state.input) == 0
+          let l:item_count += 1
+          call add(l:prefix_items, extend({
+          \   'word': l:word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \ }, l:item, 'keep'))
+
+          " match fuzzy.
+        elseif g:compete_fuzzy && l:word =~ l:fuzzy
+          let l:item_count += 1
+          call add(l:fuzzy_items, extend({
+          \   'word': l:word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \ }, l:item, 'keep'))
+        endif
+
+        if l:item_count >= g:compete_item_count
+          break
+        endif
+      endfor
     endfor
 
-    let l:items = l:prefix_items + l:fuzzy_items
+    let s:state.time = reltime()
+    let s:state.items = l:prefix_items + l:fuzzy_items
 
     " complete.
-    call complete(l:start, l:items[0 : min([g:complete_item_count, len(l:items) - 1])])
-    let s:cache = {
-    \   'lnum': l:context.lnum,
-    \   'start': l:start,
-    \   'items': l:items
-    \ }
+    call complete(s:state.start, s:state.items)
   endfunction
 
-  let s:state.timer_id = timer_start(pumvisible() ? g:compete_throttle : 50, { -> l:ctx.callback() })
-endfunction
+  " keep current pum.
+  if len(s:state.items) > 0
+    call complete(s:state.start, s:state.items)
+  endif
 
+  " clear recent debounce timer.
+  call timer_stop(s:filter_timer_id)
+
+  let l:time = len(s:state.time) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.time)) * 1000
+  if l:time >= g:compete_throttle
+    call l:ctx.callback()
+  else
+    let s:filter_timer_id = timer_start(g:compete_throttle, { -> l:ctx.callback() })
+  endif
+endfunction
 
 "
 " get_matches
@@ -248,7 +242,8 @@ function! s:create_complete_callback(context, source, id) abort
     let l:match.items = a:match.items
     let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
-    call s:filter(a:context)
+    call timer_stop(s:complete_timer_id)
+    let s:complete_timer_id = timer_start(50, { -> s:filter(a:context) })
   endfunction
 
   return function(l:ctx.callback, [a:context, a:source, a:id])
@@ -267,28 +262,6 @@ function! s:create_abort_callback(context, source, id) abort
     endif
   endfunction
   return function(l:ctx.callback, [a:context, a:source, a:id])
-endfunction
-
-"
-" ignore
-"
-function! s:ignore(...) abort
-  " mode check.
-  if mode()[0] !=# 'i'
-    call timer_stop(s:state.timer_id)
-    let s:state.timer_id = -1
-    return v:true
-  endif
-
-  " selected check.
-  let l:complete_info = complete_info(['selected'])
-  if l:complete_info.selected != -1
-    call timer_stop(s:state.timer_id)
-    let s:state.timer_id = -1
-    return v:true
-  endif
-
-  return v:false
 endfunction
 
 "
