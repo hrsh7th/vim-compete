@@ -64,15 +64,19 @@ function! compete#on_change() abort
         call add(l:starts, l:start)
       endif
     endfor
-    if len(l:starts) > 0
-      let s:state.start = min(l:starts)
-      let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start)
-      call s:filter(l:context)
-    else
+
+    let l:start = min(l:starts)
+    if len(l:starts) == 0 || l:start != s:state.start
       let s:state.start = -1
       let s:state.input = ''
       let s:state.items = []
       let s:state.times = []
+    endif
+
+    if len(l:starts) > 0
+      let s:state.start = l:start
+      let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start)
+      call s:filter()
     endif
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
@@ -141,81 +145,82 @@ endfunction
 "
 " filter
 "
-function! s:filter(context) abort
-  let l:ctx = {}
-  function! l:ctx.callback() abort
-    if mode()[0] !=# 'i'
-      return
-    endif
+function! s:filter(...) abort
+  " clear recent debounce timer.
+  call timer_stop(s:filter_timer_id)
 
-    if s:state.start == -1
-      return
-    endif
-
-    let l:context = s:context()
-    let l:prefix_items = []
-    let l:fuzzy_items = []
-    let l:item_count = 0
-
-    for l:match in filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
-      let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
-      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
-
-      for l:item in l:match.items
-        let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
-
-        " pass through
-        if s:state.input ==# ''
-          let l:item_count += 1
-          call add(l:prefix_items, extend({
-          \   'word': l:word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \ }, l:item, 'keep'))
-
-        " match prefix.
-        elseif stridx(l:word, s:state.input) == 0
-          let l:item_count += 1
-          call add(l:prefix_items, extend({
-          \   'word': l:word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \ }, l:item, 'keep'))
-
-          " match fuzzy.
-        elseif g:compete_fuzzy && l:word =~ l:fuzzy
-          let l:item_count += 1
-          call add(l:fuzzy_items, extend({
-          \   'word': l:word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \ }, l:item, 'keep'))
-        endif
-
-        if l:item_count >= g:compete_item_count
-          break
-        endif
-      endfor
-    endfor
-
-    let s:state.times = reltime()
-    let s:state.items = l:prefix_items + l:fuzzy_items
-
-    " complete.
-    call complete(s:state.start, s:state.items)
-  endfunction
-
-  " keep current pum.
   if len(s:state.items) > 0
     call complete(s:state.start, s:state.items)
   endif
 
-  " clear recent debounce timer.
-  call timer_stop(s:filter_timer_id)
-
   let l:time = len(s:state.times) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.times)) * 1000
   if l:time >= g:compete_throttle
-    call l:ctx.callback()
+    call s:on_filter()
   else
-    let s:filter_timer_id = timer_start(g:compete_throttle, { -> l:ctx.callback() })
+    let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_filter'))
   endif
+endfunction
+
+"
+" on_filter
+"
+function! s:on_filter(...) abort
+  if mode()[0] !=# 'i'
+    return
+  endif
+
+  if s:state.start == -1
+    return
+  endif
+
+  let l:context = s:context()
+  let l:prefix_items = []
+  let l:fuzzy_items = []
+  let l:item_count = 0
+
+  for l:match in filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
+    let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
+    let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+
+    for l:item in l:match.items
+      let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
+
+      " match prefix.
+      if stridx(l:word, s:state.input) == 0
+        let l:item_count += 1
+        call add(l:prefix_items, extend({
+        \   'word': l:word,
+        \   'abbr': get(l:item, 'abbr', l:item.word),
+        \ }, l:item, 'keep'))
+
+        " match fuzzy.
+      elseif g:compete_fuzzy && l:word =~ l:fuzzy
+        let l:item_count += 1
+        call add(l:fuzzy_items, extend({
+        \   'word': l:word,
+        \   'abbr': get(l:item, 'abbr', l:item.word),
+        \ }, l:item, 'keep'))
+
+        " pass through
+      elseif s:state.input ==# ''
+        let l:item_count += 1
+        call add(l:prefix_items, extend({
+        \   'word': l:word,
+        \   'abbr': get(l:item, 'abbr', l:item.word),
+        \ }, l:item, 'keep'))
+
+      endif
+
+      if l:item_count >= g:compete_item_count
+        break
+      endif
+    endfor
+  endfor
+
+  " complete.
+  let s:state.times = reltime()
+  let s:state.items = l:prefix_items + l:fuzzy_items
+  call complete(s:state.start, s:state.items)
 endfunction
 
 "
@@ -250,7 +255,7 @@ function! s:create_complete_callback(context, source, id) abort
     let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
     call timer_stop(s:complete_timer_id)
-    let s:complete_timer_id = timer_start(50, { -> s:filter(a:context) })
+    let s:complete_timer_id = timer_start(50, function('s:filter'))
   endfunction
 
   return function(l:ctx.callback, [a:context, a:source, a:id])
@@ -293,12 +298,8 @@ endfunction
 function! s:get_before_char(lnum, before_line) abort
   let l:lnum = a:lnum
   while l:lnum > 0
-    if l:lnum == a:lnum
-      let l:text = a:before_line
-    else
-      let l:text = getline(l:lnum)
-    endif
-    let l:char = matchstr(l:text, '\([^[:blank:]]\)\ze\s*$')
+    let l:line = l:lnum == a:lnum ? a:before_line : getline(l:lnum)
+    let l:char = matchstr(l:line, '\([^[:blank:]]\)\ze\s*$')
     if l:char !=# ''
       return l:char
     endif
