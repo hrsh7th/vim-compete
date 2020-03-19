@@ -255,7 +255,6 @@ function! s:on_filter(...) abort
         \   'word': l:word,
         \   'abbr': get(l:item, 'abbr', l:item.word),
         \ }, l:item, 'keep'))
-
       endif
 
       if l:item_count >= g:compete_item_count
@@ -267,7 +266,7 @@ function! s:on_filter(...) abort
 
   " complete.
   let s:state.times = reltime()
-  let s:state.items = sort(l:prefix_items + l:fuzzy_items, function('s:compare_locality', [l:context]))
+  let s:state.items = sort(l:prefix_items, function('s:compare_locality', [l:context])) + l:fuzzy_items
   call complete(s:state.start, s:state.items)
 endfunction
 
@@ -393,8 +392,9 @@ endfunction
 " compare_locality
 "
 function! s:compare_locality(context, item1, item2) abort
-  if has_key(a:item1, 'user_data') != has_key(a:item2, 'user_data')
-    return has_key(a:item1, 'user_data') ? -1 : 1
+  let l:has_user_data1 = has_key(a:item1, 'user_data')
+  if l:has_user_data1 != has_key(a:item2, 'user_data')
+    return l:has_user_data1 ? -1 : 1
   endif
 
   let l:idx1 = index(a:context.keywords, a:item1.word)
