@@ -41,8 +41,8 @@ endfunction
 "
 function! compete#on_insert_enter() abort
   let l:lnum = line('.')
-  let l:min_above = max([1, l:lnum - g:compete_keyword_cache])
-  let l:max_below = min([line('$'), l:lnum + g:compete_keyword_cache + 1])
+  let l:min_above = max([1, l:lnum - g:compete_keyword_range])
+  let l:max_below = min([line('$'), l:lnum + g:compete_keyword_range + 1])
 
   let l:above = reverse(getline(l:min_above, l:lnum))
   let l:below = getline(l:lnum + 1, l:max_below)
@@ -195,14 +195,13 @@ function! s:filter(...) abort
   " clear recent debounce timer.
   call timer_stop(s:filter_timer_id)
 
-  if len(s:state.items) > 0
-    call complete(s:state.start, s:state.items)
-  endif
-
   let l:time = len(s:state.times) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.times)) * 1000
   if l:time >= g:compete_throttle
     call s:on_filter()
   else
+    if len(s:state.items) > 0
+      call complete(s:state.start, s:state.items)
+    endif
     let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_filter'))
   endif
 endfunction
