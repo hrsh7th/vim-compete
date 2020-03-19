@@ -194,16 +194,19 @@ endfunction
 " filter
 "
 function! s:filter(...) abort
+  " keep current pum
+  if len(s:state.items) > 0
+    call complete(s:state.start, s:state.items)
+  endif
+
   " clear recent debounce timer.
   call timer_stop(s:filter_timer_id)
+  call timer_stop(s:complete_timer_id)
 
   let l:time = len(s:state.times) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.times)) * 1000
   if l:time >= g:compete_throttle
-    call s:on_filter()
+    let s:filter_timer_id = timer_start(0, function('s:on_filter'))
   else
-    if len(s:state.items) > 0
-      call complete(s:state.start, s:state.items)
-    endif
     let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_filter'))
   endif
 endfunction
