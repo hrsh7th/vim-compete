@@ -40,14 +40,14 @@ You can specify keyword patterns per filetype.
 The key is filetype and value is vim-regex.
 
 
-#### `g:compete_throttle = 200`
+#### `g:compete_throttle = 100`
 
 Type: number
 
 You can specify delay time to filter items.
 
 
-#### `g:compete_item_count = 50`
+#### `g:compete_item_count = 30`
 
 Type: number
 
