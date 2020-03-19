@@ -54,6 +54,13 @@ Type: number
 You can specify max item count to show pum.
 This improve performance.
 
+#### `g:compete_keyword_range = 1000`
+
+Type: number
+
+You can specify range to cache keywordss.
+If you specify 1000, `compete` will cache lines thats in the range of `line('.') - 1000` ~ `line('.') + 1000`.
+
 
 # built-in source
 

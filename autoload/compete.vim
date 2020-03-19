@@ -1,4 +1,5 @@
 let s:error = 0
+let s:keywords = []
 let s:filter_timer_id = -1
 let s:complete_timer_id = -1
 let s:state = {
@@ -33,6 +34,54 @@ function! compete#pattern(...) abort
   let l:pattern = (l:pattern is 0 ? get(g:compete_patterns, &filetype, 0) : l:pattern)
   let l:pattern = (l:pattern is 0 ? s:get_pattern() : l:pattern)
   return l:pattern
+endfunction
+
+"
+" compete#on_insert_enter
+"
+function! compete#on_insert_enter() abort
+  let l:lnum = line('.')
+  let l:min_above = max([1, l:lnum - g:compete_keyword_cache])
+  let l:max_below = min([line('$'), l:lnum + g:compete_keyword_cache + 1])
+
+  let l:above = reverse(getline(l:min_above, l:lnum))
+  let l:below = getline(l:lnum + 1, l:max_below)
+
+  let l:above_len = len(l:above)
+  let l:below_len = len(l:below)
+  let l:min_len = min([l:above_len, l:below_len])
+
+  let l:lines = []
+  for l:i in range(0, l:min_len - 1)
+    if strlen(l:above[l:i]) < 200
+      call add(l:lines, l:above[l:i])
+    endif
+    if strlen(l:below[l:i]) < 200
+      call add(l:lines, l:below[l:i])
+    endif
+  endfor
+
+  if l:above_len > l:min_len
+    let l:lines += filter(l:above[l:min_len : -1], 'strlen(v:val) < 200')
+  endif
+  if l:below_len > l:min_len
+    let l:lines += filter(l:below[l:min_len : -1], 'strlen(v:val) < 200')
+  endif
+
+  let l:pattern = compete#pattern()
+
+  let l:unique = {}
+  let s:keywords = []
+  for l:keyword in split(' ' . join(l:lines, ' ') . ' ', l:pattern . '\zs.\{-}\ze' . l:pattern)
+    let l:keyword = trim(l:keyword)
+    if len(l:keyword) > 2 && !has_key(l:unique, l:keyword)
+      if !has_key(l:unique, l:keyword)
+
+        let l:unique[l:keyword] =  1
+        call add(s:keywords, l:keyword)
+      endif
+    endif
+  endfor
 endfunction
 
 "
@@ -162,7 +211,7 @@ endfunction
 " on_filter
 "
 function! s:on_filter(...) abort
-  if mode()[0] !=# 'i'
+  if mode()[0] !=# 'i' || complete_info(['selected']).selected != -1
     return
   endif
 
@@ -177,7 +226,7 @@ function! s:on_filter(...) abort
 
   for l:match in filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
     let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
-    let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+    let l:fuzzy = '^\V.*' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
 
     for l:item in l:match.items
       let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
@@ -214,9 +263,10 @@ function! s:on_filter(...) abort
     endfor
   endfor
 
+
   " complete.
   let s:state.times = reltime()
-  let s:state.items = l:prefix_items + l:fuzzy_items
+  let s:state.items = sort(l:prefix_items + l:fuzzy_items, function('s:compare_locality', [l:context]))
   call complete(s:state.start, s:state.items)
 endfunction
 
@@ -266,8 +316,12 @@ function! s:create_abort_callback(context, source, id) abort
   function! l:ctx.callback(context, source, id) abort
     let l:match = get(s:state.matches, a:source.name, {})
     if has_key(l:match, 'id')
-      let l:match.id = a:id + 1
+      let l:match.id += 1
       let l:match.status = 'waiting'
+      let l:match.items = []
+      let l:match.lnum = -1
+      let l:match.start = -1
+      let l:match.incomplete = v:false
     endif
   endfunction
   return function(l:ctx.callback, [a:context, a:source, a:id])
@@ -286,6 +340,7 @@ function! s:context() abort
   \   'col': l:col,
   \   'before_char': s:get_before_char(l:lnum, l:before_line),
   \   'before_line': l:before_line,
+  \   'keywords': copy(s:keywords),
   \ }
 endfunction
 
@@ -330,5 +385,24 @@ function! s:get_pattern() abort
   let l:pattern = '\%(' . join(map(l:keywords, { _, v -> '\V' . escape(v, '\') . '\m' }), '\|') . '\|\w\)*'
   let s:patterns[&iskeyword] = l:pattern
   return l:pattern
+endfunction
+
+"
+" compare_locality
+"
+function! s:compare_locality(context, item1, item2) abort
+  if has_key(a:item1, 'user_data') != has_key(a:item2, 'user_data')
+    return has_key(a:item1, 'user_data') ? -1 : 1
+  endif
+
+  let l:idx1 = index(a:context.keywords, a:item1.word)
+  let l:idx2 = index(a:context.keywords, a:item2.word)
+  if l:idx1 != -1 && l:idx2 == -1
+    return -1
+  endif
+  if l:idx1 == -1 && l:idx2 != -1
+    return 1
+  endif
+  return l:idx1 - l:idx2
 endfunction
 
