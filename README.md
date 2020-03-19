@@ -40,6 +40,21 @@ You can specify keyword patterns per filetype.
 The key is filetype and value is vim-regex.
 
 
+#### `g:compete_throttle = 200`
+
+Type: number
+
+You can specify delay time to filter items.
+
+
+#### `g:compete_item_count = 50`
+
+Type: number
+
+You can specify max item count to show pum.
+This improve performance.
+
+
 # built-in source
 
 #### buffer

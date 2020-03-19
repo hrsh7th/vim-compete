@@ -193,7 +193,7 @@ function! s:on_filter(...) abort
         \   'abbr': get(l:item, 'abbr', l:item.word),
         \ }, l:item, 'keep'))
 
-        " match fuzzy.
+      " match fuzzy.
       elseif g:compete_fuzzy && l:word =~ l:fuzzy
         let l:item_count += 1
         call add(l:fuzzy_items, extend({
@@ -201,7 +201,7 @@ function! s:on_filter(...) abort
         \   'abbr': get(l:item, 'abbr', l:item.word),
         \ }, l:item, 'keep'))
 
-        " pass through
+      " pass through
       elseif s:state.input ==# ''
         let l:item_count += 1
         call add(l:prefix_items, extend({
