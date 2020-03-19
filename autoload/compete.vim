@@ -101,24 +101,21 @@ function! s:trigger(context, source) abort
   endif
   let l:match = s:state.matches[a:source.name]
 
-  let l:input = matchstr(a:context.before_line, compete#pattern(a:source) . '$')
+  let [l:input, l:input_start, l:_] = matchstrpos(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
   if l:chars !=# ''
     let l:start = a:context.col
-  elseif l:input !=# ''
-    let l:start = a:context.col - strlen(l:input)
+  elseif l:input_start != -1 && (l:input_start + a:source.min_length + 1) <= a:context.col
+    let l:start = l:input_start + 1
   else
     " if input/chars doesn't match and position was changed, discard recent items.
-    if l:match.start != a:context.col
-      let l:match.id += 1
-      let l:match.status = 'waiting'
-      let l:match.items = []
-      let l:match.lnum = -1
-      let l:match.start = -1
-      let l:match.incomplete = v:false
-      return -1
-    endif
-    return l:match.start
+    let l:match.id += 1
+    let l:match.status = 'waiting'
+    let l:match.items = []
+    let l:match.lnum = -1
+    let l:match.start = -1
+    let l:match.incomplete = v:false
+    return -1
   endif
 
   " avoid request when start position does not changed.
