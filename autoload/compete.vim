@@ -25,7 +25,6 @@ function! compete#on_clear() abort
   \ }
 endfunction
 
-
 "
 " compete#pattern
 "
@@ -266,7 +265,7 @@ function! s:on_filter(...) abort
     if l:item_count < g:compete_item_count
       let l:items = l:next_items
       let l:next_items = []
-      let l:fuzzy = '^\V' . l:short . '\m.\{-}\V' . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
       for l:item in l:items
         if l:item_count >= g:compete_item_count
           break
@@ -314,8 +313,6 @@ endfunction
 function! s:create_complete_callback(context, source, id) abort
   let l:ctx = {}
   function! l:ctx.callback(context, source, id, match) abort
-    call timer_stop(s:filter_timer_id)
-    call timer_stop(s:complete_timer_id)
 
     let l:match = get(s:state.matches, a:source.name, {})
     if !has_key(l:match, 'id') || a:id < l:match.id
@@ -331,6 +328,8 @@ function! s:create_complete_callback(context, source, id) abort
     let l:match.lnum = a:context.lnum
     let l:match.items = a:match.items
     let l:match.incomplete = get(a:match, 'incomplete', v:false)
+    call timer_stop(s:filter_timer_id)
+    call timer_stop(s:complete_timer_id)
     let s:complete_timer_id = timer_start(g:compete_throttle, function('s:filter'))
   endfunction
 
