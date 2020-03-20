@@ -238,6 +238,7 @@ function! s:on_filter(...) abort
         call add(l:prefix_items, extend({
         \   'word': l:word,
         \   'abbr': get(l:item, 'abbr', l:item.word),
+        \   '_prefix': 1,
         \ }, l:item, 'keep'))
 
       " match fuzzy.
@@ -246,6 +247,7 @@ function! s:on_filter(...) abort
         call add(l:fuzzy_items, extend({
         \   'word': l:word,
         \   'abbr': get(l:item, 'abbr', l:item.word),
+        \   '_prefix': 0,
         \ }, l:item, 'keep'))
 
       " pass through
@@ -254,6 +256,7 @@ function! s:on_filter(...) abort
         call add(l:prefix_items, extend({
         \   'word': l:word,
         \   'abbr': get(l:item, 'abbr', l:item.word),
+        \   '_prefix': 0,
         \ }, l:item, 'keep'))
       endif
 
@@ -266,7 +269,7 @@ function! s:on_filter(...) abort
 
   " complete.
   let s:state.times = reltime()
-  let s:state.items = sort(l:prefix_items, function('s:compare_locality', [l:context])) + l:fuzzy_items
+  let s:state.items = sort(l:prefix_items + l:fuzzy_items, function('s:compare_locality', [l:context]))
   call complete(s:state.start, s:state.items)
 endfunction
 
@@ -395,6 +398,11 @@ function! s:compare_locality(context, item1, item2) abort
   let l:has_user_data1 = has_key(a:item1, 'user_data')
   if l:has_user_data1 != has_key(a:item2, 'user_data')
     return l:has_user_data1 ? -1 : 1
+  endif
+
+  let l:is_prefix = get(a:item1, '_preifx', 0)
+  if l:is_prefix != get(a:item2, '_prefix', 0)
+    return l:is_prefix ? -1 : 1
   endif
 
   let l:idx1 = index(a:context.keywords, a:item1.word)
