@@ -16,7 +16,7 @@ function! compete#source#register(source) abort
   let a:source.filetypes = get(a:source, 'filetypes', ['*'])
   let a:source.trigger_chars = get(a:source, 'trigger_chars', [])
   let a:source.min_length = get(a:source, 'min_length', 1)
-  let s:sources[s:id] = a:source
+  let s:sources[s:id] = copy(a:source)
   return s:id
 endfunction
 
@@ -24,7 +24,9 @@ endfunction
 " compete#source#unregister
 "
 function! compete#source#unregister(source_id) abort
-  call remove(s:sources, a:source_id)
+  if has_key(s:sources, a:source_id)
+    unlet s:sources[a:source_id]
+  endif
 endfunction
 
 "

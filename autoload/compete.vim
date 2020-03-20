@@ -159,7 +159,6 @@ function! s:trigger(context, source) abort
   elseif l:input_start != -1 && (l:input_start + a:source.min_length + 1) <= a:context.col
     let l:start = l:input_start + 1
   else
-    " if input/chars doesn't match and position was changed, discard recent items.
     let l:match.id += 1
     let l:match.status = 'waiting'
     let l:match.items = []
@@ -228,7 +227,7 @@ function! s:on_filter(...) abort
 
   for l:match in filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
     let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
-    let l:fuzzy = '^\V.*' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+    let l:fuzzy = '^.\{-}\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
 
     for l:item in l:match.items
       let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
