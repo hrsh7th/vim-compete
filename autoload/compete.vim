@@ -222,7 +222,7 @@ function! s:on_filter(...) abort
 
   let l:context = s:context()
   let l:matches = filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
-  let l:prefix_just_items = []
+  let l:prefix_items = []
   let l:prefix_icase_items = []
   let l:contain_items = []
   let l:fuzzy_items = []
@@ -246,65 +246,14 @@ function! s:on_filter(...) abort
           continue
         endif
 
-        if stridx(l:item._word, s:state.input) == 0
-          let l:item_count += 1
-          let l:unique[l:item._word] = 1
-          call add(l:prefix_just_items, extend({
-          \   'word': l:item._word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \   '_priority': 1,
-          \ }, l:item, 'keep'))
-        else
-          call add(l:next_items, l:item)
-        endif
-      endfor
-    endif
-
-    " search icase prefix items.
-    if l:item_count < g:compete_item_count
-      let l:items = l:next_items
-      let l:next_items = []
-      for l:item in l:items
-        if l:item_count >= g:compete_item_count
-          break
-        endif
-        if has_key(l:unique, l:item._word)
-          continue
-        endif
-
         if l:item._word =~? '^\V' . s:state.input
           let l:item_count += 1
           let l:unique[l:item._word] = 1
-          call add(l:prefix_icase_items, extend({
+          call add(l:prefix_items, extend({
           \   'word': l:item._word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
-          \   '_priority': 2,
-          \ }, l:item, 'keep'))
-        else
-          call add(l:next_items, l:item)
-        endif
-      endfor
-    endif
-
-    " search contains items.
-    if l:item_count < g:compete_item_count
-      let l:items = l:next_items
-      let l:next_items = []
-      for l:item in l:items
-        if l:item_count >= g:compete_item_count
-          break
-        endif
-        if has_key(l:unique, l:item._word)
-          continue
-        endif
-
-        if stridx(l:item._word, s:state.input) != -1
-          let l:item_count += 1
-          let l:unique[l:item._word] = 1
-          call add(l:contain_items, extend({
-          \   'word': l:item._word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \   '_priority': 3,
+          \   '_priority': 1,
+          \   '_just': stridx(l:item._word, s:state.input) != -1,
           \ }, l:item, 'keep'))
         else
           call add(l:next_items, l:item)
@@ -332,6 +281,7 @@ function! s:on_filter(...) abort
           \   'word': l:item._word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \   '_priority': 4,
+          \   '_just': v:false,
           \ }, l:item, 'keep'))
         else
           call add(l:next_items, l:item)
@@ -342,7 +292,7 @@ function! s:on_filter(...) abort
 
   " complete.
   let s:state.times = reltime()
-  let s:state.items = sort(l:prefix_just_items + l:prefix_icase_items + l:contain_items + l:fuzzy_items, function('s:compare_locality', [l:context]))
+  let s:state.items = sort(l:prefix_items + l:fuzzy_items, function('s:compare', [l:context]))
   call complete(s:state.start, s:state.items)
 endfunction
 
@@ -465,13 +415,15 @@ function! s:get_pattern() abort
 endfunction
 
 "
-" compare_locality
+" compare
 "
-function! s:compare_locality(context, item1, item2) abort
-  let l:priority1 = get(a:item1, '_priority', 1000)
-  let l:priority2 = get(a:item2, '_priority', 1000)
-  if l:priority1 != l:priority2
-    return l:priority1 - l:priority2
+function! s:compare(context, item1, item2) abort
+  if a:item1._just != a:item2._just
+    return a:item1._just ? -1 : 1
+  endif
+
+  if a:item1._priority != a:item2._priority
+    return a:item1._priority - a:item2._priority
   endif
 
   let l:has_user_data1 = has_key(a:item1, 'user_data')
