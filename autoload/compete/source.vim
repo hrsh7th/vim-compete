@@ -16,6 +16,7 @@ function! compete#source#register(source) abort
   let a:source.filetypes = get(a:source, 'filetypes', ['*'])
   let a:source.trigger_chars = get(a:source, 'trigger_chars', [])
   let a:source.min_length = get(a:source, 'min_length', 1)
+  let a:source.priority = get(a:source, 'priority', 0)
   let s:sources[s:id] = copy(a:source)
   return s:id
 endfunction

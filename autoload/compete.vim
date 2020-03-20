@@ -254,6 +254,7 @@ function! s:on_filter(...) abort
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \   '_priority': 1,
           \   '_just': stridx(l:item._word, s:state.input) != -1,
+          \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
         else
           call add(l:next_items, l:item)
@@ -282,6 +283,7 @@ function! s:on_filter(...) abort
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \   '_priority': 4,
           \   '_just': v:false,
+          \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
         else
           call add(l:next_items, l:item)
@@ -302,7 +304,7 @@ endfunction
 function! s:get_matches() abort
   let l:matches = values(s:state.matches)
   let l:matches = filter(l:matches, 'v:val.status ==# "completed" || v:val.status ==# "processing"')
-  let l:matches = sort(l:matches, { a, b -> get(b.source, 'priority', 0) - get(a.source, 'priority', 0) })
+  let l:matches = sort(l:matches, { a, b -> b.source.priority - a.source.priority })
   return l:matches
 endfunction
 
@@ -418,6 +420,10 @@ endfunction
 " compare
 "
 function! s:compare(context, item1, item2) abort
+  if a:item1._source_priority != a:item2._source_priority
+    return a:item2._source_priority - a:item1._source_priority
+  endif
+
   if a:item1._just != a:item2._just
     return a:item1._just ? -1 : 1
   endif
