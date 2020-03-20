@@ -99,7 +99,7 @@ function! compete#on_change() abort
   endif
   let s:state.changedtick = b:changedtick
 
-  if mode()[0] !=# 'i' || complete_info(['selected']).selected != -1
+  if mode()[0] !=# 'i' || s:selected()
     return
   endif
 
@@ -195,9 +195,7 @@ endfunction
 "
 function! s:filter(...) abort
   " keep current pum
-  if len(s:state.items) > 0
-    call complete(s:state.start, s:state.items)
-  endif
+  call complete(s:state.start, s:state.items)
 
   " clear recent debounce timer.
   call timer_stop(s:filter_timer_id)
@@ -215,7 +213,7 @@ endfunction
 " on_filter
 "
 function! s:on_filter(...) abort
-  if mode()[0] !=# 'i' || complete_info(['selected']).selected != -1
+  if mode()[0] !=# 'i' || s:selected()
     return
   endif
 
@@ -236,7 +234,7 @@ function! s:on_filter(...) abort
       let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
 
       " match prefix.
-      if stridx(l:word, s:state.input) == 0
+      if l:word =~? '^\V' . s:state.input
         let l:item_count += 1
         call add(l:prefix_items, extend({
         \   'word': l:word,
@@ -244,7 +242,7 @@ function! s:on_filter(...) abort
         \ }, l:item, 'keep'))
 
       " match fuzzy.
-      elseif g:compete_fuzzy && l:word =~ l:fuzzy
+      elseif g:compete_fuzzy && l:word =~? l:fuzzy
         let l:item_count += 1
         call add(l:fuzzy_items, extend({
         \   'word': l:word,
@@ -409,5 +407,12 @@ function! s:compare_locality(context, item1, item2) abort
     return 1
   endif
   return l:idx1 - l:idx2
+endfunction
+
+"
+" selected
+"
+function! s:selected() abort
+  return complete_info(['selected']).selected != -1 && !empty(v:completed_item) && strlen(get(v:completed_item, 'word')) > 0
 endfunction
 
