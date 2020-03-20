@@ -221,55 +221,128 @@ function! s:on_filter(...) abort
   endif
 
   let l:context = s:context()
-  let l:prefix_items = []
+  let l:matches = filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
+  let l:prefix_just_items = []
+  let l:prefix_icase_items = []
+  let l:contain_items = []
   let l:fuzzy_items = []
   let l:item_count = 0
 
-  for l:match in filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
+  for l:match in l:matches
     let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
-    let l:fuzzy = '^.\{-}\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+    let l:unique = {}
 
-    for l:item in l:match.items
-      let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
+    " search just prefix items.
+    if l:item_count < g:compete_item_count
+      let l:items = copy(l:match.items)
+      let l:next_items = []
+      for l:item in l:items
+        if l:item_count >= g:compete_item_count
+          break
+        endif
 
-      " match prefix.
-      if l:word =~? '^\V' . s:state.input
-        let l:item_count += 1
-        call add(l:prefix_items, extend({
-        \   'word': l:word,
-        \   'abbr': get(l:item, 'abbr', l:item.word),
-        \   '_prefix': 1,
-        \ }, l:item, 'keep'))
+        let l:item._word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
+        if has_key(l:unique, l:item._word)
+          continue
+        endif
 
-      " match fuzzy.
-      elseif g:compete_fuzzy && l:word =~? l:fuzzy
-        let l:item_count += 1
-        call add(l:fuzzy_items, extend({
-        \   'word': l:word,
-        \   'abbr': get(l:item, 'abbr', l:item.word),
-        \   '_prefix': 0,
-        \ }, l:item, 'keep'))
+        if stridx(l:item._word, s:state.input) == 0
+          let l:item_count += 1
+          let l:unique[l:item._word] = 1
+          call add(l:prefix_just_items, extend({
+          \   'word': l:item._word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \   '_priority': 1,
+          \ }, l:item, 'keep'))
+        else
+          call add(l:next_items, l:item)
+        endif
+      endfor
+    endif
 
-      " pass through
-      elseif s:state.input ==# ''
-        let l:item_count += 1
-        call add(l:prefix_items, extend({
-        \   'word': l:word,
-        \   'abbr': get(l:item, 'abbr', l:item.word),
-        \   '_prefix': 0,
-        \ }, l:item, 'keep'))
-      endif
+    " search icase prefix items.
+    if l:item_count < g:compete_item_count
+      let l:items = l:next_items
+      let l:next_items = []
+      for l:item in l:items
+        if l:item_count >= g:compete_item_count
+          break
+        endif
+        if has_key(l:unique, l:item._word)
+          continue
+        endif
 
-      if l:item_count >= g:compete_item_count
-        break
-      endif
-    endfor
+        if l:item._word =~? '^\V' . s:state.input
+          let l:item_count += 1
+          let l:unique[l:item._word] = 1
+          call add(l:prefix_icase_items, extend({
+          \   'word': l:item._word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \   '_priority': 2,
+          \ }, l:item, 'keep'))
+        else
+          call add(l:next_items, l:item)
+        endif
+      endfor
+    endif
+
+    " search contains items.
+    if l:item_count < g:compete_item_count
+      let l:items = l:next_items
+      let l:next_items = []
+      for l:item in l:items
+        if l:item_count >= g:compete_item_count
+          break
+        endif
+        if has_key(l:unique, l:item._word)
+          continue
+        endif
+
+        if stridx(l:item._word, s:state.input) != -1
+          let l:item_count += 1
+          let l:unique[l:item._word] = 1
+          call add(l:contain_items, extend({
+          \   'word': l:item._word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \   '_priority': 3,
+          \ }, l:item, 'keep'))
+        else
+          call add(l:next_items, l:item)
+        endif
+      endfor
+    endif
+
+    " search fuzzy items.
+    if l:item_count < g:compete_item_count
+      let l:items = l:next_items
+      let l:next_items = []
+      let l:fuzzy = '^\V' . l:short . '\m.\{-}\V' . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+      for l:item in l:items
+        if l:item_count >= g:compete_item_count
+          break
+        endif
+        if has_key(l:unique, l:item._word)
+          continue
+        endif
+
+        if l:item._word =~? l:fuzzy
+          let l:item_count += 1
+          let l:unique[l:item._word] = 1
+          call add(l:fuzzy_items, extend({
+          \   'word': l:item._word,
+          \   'abbr': get(l:item, 'abbr', l:item.word),
+          \   '_priority': 4,
+          \ }, l:item, 'keep'))
+        else
+          call add(l:next_items, l:item)
+        endif
+      endfor
+    endif
   endfor
-
 
   " complete.
   let s:state.times = reltime()
-  let s:state.items = sort(l:prefix_items + l:fuzzy_items, function('s:compare_locality', [l:context]))
+  let s:state.items = sort(l:prefix_just_items + l:prefix_icase_items + l:contain_items + l:fuzzy_items, function('s:compare_locality', [l:context]))
   call complete(s:state.start, s:state.items)
 endfunction
 
@@ -395,14 +468,15 @@ endfunction
 " compare_locality
 "
 function! s:compare_locality(context, item1, item2) abort
+  let l:priority1 = get(a:item1, '_priority', 1000)
+  let l:priority2 = get(a:item2, '_priority', 1000)
+  if l:priority1 != l:priority2
+    return l:priority1 - l:priority2
+  endif
+
   let l:has_user_data1 = has_key(a:item1, 'user_data')
   if l:has_user_data1 != has_key(a:item2, 'user_data')
     return l:has_user_data1 ? -1 : 1
-  endif
-
-  let l:is_prefix = get(a:item1, '_preifx', 0)
-  if l:is_prefix != get(a:item2, '_prefix', 0)
-    return l:is_prefix ? -1 : 1
   endif
 
   let l:idx1 = index(a:context.keywords, a:item1.word)

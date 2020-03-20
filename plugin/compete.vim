@@ -9,7 +9,7 @@ let g:compete_throttle = get(g:, 'compete_throttle', 100)
 let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
 let g:compete_item_count = get(g:, 'complete_item_count', 30)
 let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
-\   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|&\|\w\)\%(\w\|#\)*',
+\   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|&\|\w\)\%(\w\|#\|\.\)*',
 \   'php': '\%(\$\|\w\)\%(\w\|\->\)*',
 \ }, 'keep')
 
