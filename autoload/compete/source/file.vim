@@ -1,10 +1,14 @@
+let s:accept_pattern = '\%([^<[:blank:][:digit:]\*]\)'
+let s:prefix_pattern = '\%(\~/\|\./\|\.\./\|/\)'
+let s:name_pattern = '\%([^/\\:\*?<>\|]*\)'
+
 "
 " compete#source#file#register
 "
 function! compete#source#file#register() abort
   call compete#source#register({
   \   'name': 'file',
-  \   'pattern': '\%(^\|[^<[:blank:][:digit:]\*]\)\s*\zs/[^/\\:\*?<>\|]*',
+  \   'pattern': s:accept_pattern . '\s*\zs' . s:prefix_pattern . s:name_pattern,
   \   'priority': 100,
   \   'filetypes':  ['*'],
   \   'complete': function('s:complete')
@@ -15,7 +19,7 @@ endfunction
 " complete
 "
 function! s:complete(context, callback) abort
-  let l:input = matchstr(a:context.before_line, '\%(\~/\|\./\|\.\./\|/\)\%([^/\\:\*?<>\|]*\)\%(/[^/\\:\*?<>\|]*\)*')
+  let l:input = matchstr(a:context.before_line, s:prefix_pattern . s:name_pattern . '\%(/' . s:name_pattern . '\)*$')
   let l:input = substitute(s:absolute(l:input), '[^/]*$', '', 'g')
 
   if !isdirectory(l:input) && !filereadable(l:input)
