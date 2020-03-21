@@ -201,7 +201,6 @@ function! s:filter(...) abort
   if l:time >= g:compete_throttle
     call s:on_filter()
   else
-    call complete(s:state.start, s:state.items)
     call timer_stop(s:filter_timer_id)
     let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_change'))
   endif
