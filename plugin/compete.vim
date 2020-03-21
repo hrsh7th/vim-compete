@@ -13,11 +13,13 @@ let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'php': '\%(\$\|\w\)\%(\w\|\->\)*',
 \ }, 'keep')
 
+imap <silent> <Plug>(compete-on-change) <C-r>=CompeteOnChange()<CR>
+
 augroup compete
   autocmd!
   autocmd InsertEnter * call timer_start(0, { -> s:on_insert_enter() })
   autocmd InsertLeave * call s:on_insert_leave()
-  autocmd TextChangedI,TextChangedP * call s:on_text_changed()
+  autocmd InsertCharPre * call s:on_insert_char_pre()
 augroup END
 
 "
@@ -40,12 +42,20 @@ function! s:on_insert_leave() abort
 endfunction
 
 "
-" on_text_changed
+" on_insert_char_pre
 "
-function! s:on_text_changed() abort
+function! s:on_insert_char_pre() abort
   if g:compete_enable
-    call compete#on_change()
+    noautocmd call feedkeys("\<Plug>(compete-on-change)", 't')
   endif
+endfunction
+
+"
+" on_insert_char_pre
+"
+function! CompeteOnChange() abort
+  call compete#on_change()
+  return ''
 endfunction
 
 call compete#source#buffer#register()

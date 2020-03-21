@@ -1,7 +1,6 @@
 let s:error = 0
 let s:keywords = []
 let s:filter_timer_id = -1
-let s:complete_timer_id = -1
 let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
@@ -102,6 +101,13 @@ function! compete#on_change() abort
     return
   endif
 
+  call s:on_change()
+endfunction
+
+"
+" on_change
+"
+function! s:on_change(...) abort
   " process.
   try
     let l:context = s:context()
@@ -120,7 +126,6 @@ function! compete#on_change() abort
       let s:state.items = []
       let s:state.times = []
       call timer_stop(s:filter_timer_id)
-      call timer_stop(s:complete_timer_id)
     endif
 
     if len(l:starts) > 0
@@ -192,18 +197,13 @@ endfunction
 " filter
 "
 function! s:filter(...) abort
-  " keep current pum
-  call complete(s:state.start, s:state.items)
-
-  " clear recent debounce timer.
-  call timer_stop(s:filter_timer_id)
-  call timer_stop(s:complete_timer_id)
-
   let l:time = len(s:state.times) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.times)) * 1000
   if l:time >= g:compete_throttle
-    let s:filter_timer_id = timer_start(0, function('s:on_filter'))
+    call s:on_filter()
   else
-    let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_filter'))
+    call complete(s:state.start, s:state.items)
+    call timer_stop(s:filter_timer_id)
+    let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_change'))
   endif
 endfunction
 
@@ -251,11 +251,12 @@ function! s:on_filter(...) abort
           call add(l:prefix_items, extend({
           \   'word': l:item._word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
+          \   'equal': 1,
           \   '_priority': 1,
           \   '_just': stridx(l:item._word, s:state.input) == 0,
           \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
-        elseif l:item._word[0] ==? s:state.input[0]
+        else
           call add(l:next_items, l:item)
         endif
       endfor
@@ -280,6 +281,7 @@ function! s:on_filter(...) abort
           call add(l:fuzzy_items, extend({
           \   'word': l:item._word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
+          \   'equal': 1,
           \   '_priority': 4,
           \   '_just': v:false,
           \   '_source_priority': l:match.source.priority,
@@ -313,7 +315,6 @@ endfunction
 function! s:create_complete_callback(context, source, id) abort
   let l:ctx = {}
   function! l:ctx.callback(context, source, id, match) abort
-
     let l:match = get(s:state.matches, a:source.name, {})
     if !has_key(l:match, 'id') || a:id < l:match.id
       return
@@ -328,9 +329,9 @@ function! s:create_complete_callback(context, source, id) abort
     let l:match.lnum = a:context.lnum
     let l:match.items = a:match.items
     let l:match.incomplete = get(a:match, 'incomplete', v:false)
+
     call timer_stop(s:filter_timer_id)
-    call timer_stop(s:complete_timer_id)
-    let s:complete_timer_id = timer_start(g:compete_throttle, function('s:filter'))
+    let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_change'))
   endfunction
 
   return function(l:ctx.callback, [a:context, a:source, a:id])
