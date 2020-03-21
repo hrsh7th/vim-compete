@@ -255,7 +255,7 @@ function! s:on_filter(...) abort
           \   '_just': stridx(l:item._word, s:state.input) == 0,
           \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
-        else
+        elseif l:item._word[0] ==? s:state.input[0]
           call add(l:next_items, l:item)
         endif
       endfor
