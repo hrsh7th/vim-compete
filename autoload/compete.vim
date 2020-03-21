@@ -252,7 +252,7 @@ function! s:on_filter(...) abort
           \   'word': l:item._word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \   '_priority': 1,
-          \   '_just': stridx(l:item._word, s:state.input) != -1,
+          \   '_just': stridx(l:item._word, s:state.input) == 0,
           \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
         else
