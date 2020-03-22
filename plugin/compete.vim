@@ -17,7 +17,7 @@ augroup compete
   autocmd!
   autocmd InsertEnter * call timer_start(0, { -> s:on_insert_enter() })
   autocmd InsertLeave * call s:on_insert_leave()
-  autocmd TextChangedI,TextChangedP * call s:on_change()
+  autocmd InsertCharPre * call s:on_insert_char_pre()
 augroup END
 
 "
@@ -42,9 +42,10 @@ endfunction
 "
 " on_change
 "
-function! s:on_change() abort
+inoremap <silent><nowait> <Plug>(compete-on-change) <C-r>=compete#on_change()<CR>
+function! s:on_insert_char_pre() abort
   if g:compete_enable
-    call timer_start(0, { -> compete#on_change() })
+    noautocmd call feedkeys("\<Plug>(compete-on-change)", '')
   endif
 endfunction
 

@@ -25,16 +25,6 @@ function! compete#on_clear() abort
 endfunction
 
 "
-" compete#pattern
-"
-function! compete#pattern(...) abort
-  let l:pattern = get(get(a:000, 0, {}), 'pattern', 0)
-  let l:pattern = (l:pattern is 0 ? get(g:compete_patterns, &filetype, 0) : l:pattern)
-  let l:pattern = (l:pattern is 0 ? s:get_pattern() : l:pattern)
-  return l:pattern
-endfunction
-
-"
 " compete#on_insert_enter
 "
 function! compete#on_insert_enter() abort
@@ -88,20 +78,32 @@ endfunction
 function! compete#on_change() abort
   " error check.
   if s:error > 10
-    return
+    return ''
   endif
 
   " changedtick check.
   if s:state.changedtick == b:changedtick
-    return
+    return ''
   endif
   let s:state.changedtick = b:changedtick
 
   if mode()[0] !=# 'i' || s:selected()
-    return
+    return ''
   endif
 
   call s:on_change()
+
+  return ''
+endfunction
+
+"
+" compete#pattern
+"
+function! compete#pattern(...) abort
+  let l:pattern = get(get(a:000, 0, {}), 'pattern', 0)
+  let l:pattern = (l:pattern is 0 ? get(g:compete_patterns, &filetype, 0) : l:pattern)
+  let l:pattern = (l:pattern is 0 ? s:get_pattern() : l:pattern)
+  return l:pattern
 endfunction
 
 "
