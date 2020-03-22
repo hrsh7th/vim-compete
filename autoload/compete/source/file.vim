@@ -1,4 +1,4 @@
-let s:accept_pattern = '\%([^<[:blank:][:digit:][:alnum:]\*]\)'
+let s:accept_pattern = '\%([^<[:blank:][:digit:][:alpha:]/\*]\)'
 let s:prefix_pattern = '\%(\~/\|\./\|\.\./\|/\)'
 let s:name_pattern = '\%([^/\\:\*?<>\|]*\)'
 
@@ -8,7 +8,7 @@ let s:name_pattern = '\%([^/\\:\*?<>\|]*\)'
 function! compete#source#file#register() abort
   call compete#source#register({
   \   'name': 'file',
-  \   'pattern': s:accept_pattern . '\s*\zs' . s:prefix_pattern . s:name_pattern,
+  \   'pattern': '/' . s:name_pattern,
   \   'priority': 100,
   \   'filetypes':  ['*'],
   \   'complete': function('s:complete')
@@ -19,7 +19,7 @@ endfunction
 " complete
 "
 function! s:complete(context, callback) abort
-  let l:input = matchstr(a:context.before_line, s:prefix_pattern . s:name_pattern . '\%(/' . s:name_pattern . '\)*$')
+  let l:input = matchstr(a:context.before_line, s:accept_pattern . '\zs' . s:prefix_pattern . s:name_pattern . '\%(/' . s:name_pattern . '\)*$')
   let l:input = substitute(s:absolute(l:input), '[^/]*$', '', 'g')
 
   if !isdirectory(l:input) && !filereadable(l:input)
@@ -41,7 +41,7 @@ function! s:convert(input, key, path) abort
     let l:abbr = '/' . l:part
   else
     let l:menu = '[f]'
-    let l:abbr =  l:part
+    let l:abbr =  ' ' . l:part
   endif
 
   return {
