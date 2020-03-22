@@ -29,6 +29,8 @@ endfunction
 " compete#on_insert_enter
 "
 function! compete#on_insert_enter() abort
+  let s:keywords = []
+
   let l:lnum = line('.')
   let l:min_above = max([1, l:lnum - g:compete_keyword_range])
   let l:max_below = min([line('$'), l:lnum + g:compete_keyword_range + 1])
@@ -56,21 +58,6 @@ function! compete#on_insert_enter() abort
   if l:below_len > l:min_len
     let l:lines += filter(l:below[l:min_len : -1], 'strlen(v:val) < 200')
   endif
-
-  let l:pattern = compete#pattern()
-
-  let l:unique = {}
-  let s:keywords = []
-  for l:keyword in split(' ' . join(l:lines, ' ') . ' ', l:pattern . '\zs.\{-}\ze' . l:pattern)
-    let l:keyword = trim(l:keyword)
-    if len(l:keyword) > 2 && !has_key(l:unique, l:keyword)
-      if !has_key(l:unique, l:keyword)
-
-        let l:unique[l:keyword] =  1
-        call add(s:keywords, l:keyword)
-      endif
-    endif
-  endfor
 endfunction
 
 "
@@ -95,6 +82,58 @@ function! compete#on_change() abort
   call s:on_change()
 
   return ''
+endfunction
+
+"
+" compete#add_keywords
+"
+function! compete#add_keywords(lines) abort
+  let l:pattern = compete#pattern()
+
+  let l:unique = {}
+  for l:keyword in split(' ' . join(a:lines, ' ') . ' ', l:pattern . '\zs.\{-}\ze' . l:pattern)
+    let l:keyword = trim(l:keyword)
+    if len(l:keyword) > 2
+      if has_key(l:unique, l:keyword)
+        continue
+      endif
+
+      let l:unique[l:keyword] =  1
+      call insert(s:keywords, l:keyword, 0)
+    endif
+  endfor
+endfunction
+
+"
+" compete#add_history
+"
+function! compete#add_history(word) abort
+  let s:history[a:word] = get(s:history, a:word, 0) + 1
+endfunction
+
+"
+" compete#store_history
+"
+function! compete#store_history() abort
+  if strlen(g:compete_history_path) > 0
+    call writefile([json_encode(s:history)], g:compete_history_path)
+  endif
+endfunction
+
+"
+" compete#restore_history
+"
+function! compete#restore_history() abort
+  if strlen(g:compete_history_path) > 0
+    if filereadable(g:compete_history_path)
+      try
+        let s:history = readfile(g:compete_history_path)
+        let s:history = type(s:history) == type([]) ? s:history : [s:history]
+        let s:history = json_decode(join(s:history, "\n"))
+      catch
+      endtry
+    endif
+  endif
 endfunction
 
 "
@@ -437,37 +476,5 @@ endfunction
 "
 function! s:selected() abort
   return complete_info(['selected']).selected != -1 && !empty(v:completed_item) && strlen(get(v:completed_item, 'word')) > 0
-endfunction
-
-"
-" compete#add_history
-"
-function! compete#add_history(word) abort
-  let s:history[a:word] = get(s:history, a:word, 0) + 1
-endfunction
-
-"
-" compete#store_history
-"
-function! compete#store_history() abort
-  if strlen(g:compete_history_path) > 0
-    call writefile([json_encode(s:history)], g:compete_history_path)
-  endif
-endfunction
-
-"
-" compete#restore_history
-"
-function! compete#restore_history() abort
-  if strlen(g:compete_history_path) > 0
-    if filereadable(g:compete_history_path)
-      try
-        let s:history = readfile(g:compete_history_path)
-        let s:history = type(s:history) == type([]) ? s:history : [s:history]
-        let s:history = json_decode(join(s:history, "\n"))
-      catch
-      endtry
-    endif
-  endif
 endfunction
 
