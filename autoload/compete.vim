@@ -208,6 +208,7 @@ function! s:filter(...) abort
   endif
 endfunction
 
+
 "
 " on_filter
 "
@@ -222,81 +223,60 @@ function! s:on_filter(...) abort
 
   let l:context = s:context()
   let l:matches = filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
-  let l:prefix_items = []
+  let l:prefix_just_items = []
   let l:prefix_icase_items = []
-  let l:contain_items = []
   let l:fuzzy_items = []
-  let l:item_count = 0
 
   for l:match in l:matches
     let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
     let l:unique = {}
 
-    " search just prefix items.
-    if l:item_count < g:compete_item_count
-      let l:items = copy(l:match.items)
-      let l:next_items = []
-      for l:item in l:items
-        if l:item_count >= g:compete_item_count
-          break
-        endif
+    for l:item in l:match.items
+      let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
+      if has_key(l:unique, l:word)
+        continue
+      endif
 
-        let l:item._word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
-        if has_key(l:unique, l:item._word)
-          continue
-        endif
-
-        if l:item._word =~? '^\V' . s:state.input
-          let l:item_count += 1
-          let l:unique[l:item._word] = 1
-          call add(l:prefix_items, extend({
-          \   'word': l:item._word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
-          \   'equal': 1,
-          \   '_priority': 1,
-          \   '_just': stridx(l:item._word, s:state.input) == 0,
-          \   '_source_priority': l:match.source.priority,
-          \ }, l:item, 'keep'))
-        else
-          call add(l:next_items, l:item)
-        endif
-      endfor
-    endif
-
-    " search fuzzy items.
-    if l:item_count < g:compete_item_count
-      let l:items = l:next_items
-      let l:next_items = []
-      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
-      for l:item in l:items
-        if l:item_count >= g:compete_item_count
-          break
-        endif
-        if has_key(l:unique, l:item._word)
-          continue
-        endif
-
-        if l:item._word =~? l:fuzzy
-          let l:item_count += 1
-          let l:unique[l:item._word] = 1
+      if stridx(l:word, s:state.input) == 0
+        let l:unique[l:word] = 1
+        call add(l:prefix_just_items, extend({
+        \   'word': l:word,
+        \   'abbr': get(l:item, 'abbr', l:item.word),
+        \   'equal': 1,
+        \   '_priority': 1,
+        \   '_source_priority': l:match.source.priority,
+        \ }, l:item, 'keep'))
+      elseif l:word =~? '^\V' . s:state.input
+        let l:unique[l:word] = 1
+        call add(l:prefix_icase_items, extend({
+        \   'word': l:word,
+        \   'abbr': get(l:item, 'abbr', l:item.word),
+        \   'equal': 1,
+        \   '_priority': 2,
+        \   '_source_priority': l:match.source.priority,
+        \ }, l:item, 'keep'))
+      else
+        let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+        if l:word =~? l:fuzzy
+          let l:unique[l:word] = 1
           call add(l:fuzzy_items, extend({
-          \   'word': l:item._word,
+          \   'word': l:word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \   'equal': 1,
-          \   '_priority': 4,
-          \   '_just': v:false,
+          \   '_priority': 3,
           \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
-        else
-          call add(l:next_items, l:item)
         endif
-      endfor
-    endif
+      endif
+    endfor
   endfor
+
+  let l:items = l:prefix_just_items + l:prefix_icase_items + l:fuzzy_items
+  let l:items = l:items[0 : min([len(l:items) - 1, g:compete_item_count])]
 
   " complete.
   let s:state.times = reltime()
-  let s:state.items = sort(l:prefix_items + l:fuzzy_items, function('s:compare', [l:context]))
+  let s:state.items = sort(l:items, function('s:compare', [l:context]))
   call complete(s:state.start, s:state.items)
 endfunction
 
@@ -423,10 +403,6 @@ endfunction
 function! s:compare(context, item1, item2) abort
   if a:item1._source_priority != a:item2._source_priority
     return a:item2._source_priority - a:item1._source_priority
-  endif
-
-  if a:item1._just != a:item2._just
-    return a:item1._just ? -1 : 1
   endif
 
   if a:item1._priority != a:item2._priority
