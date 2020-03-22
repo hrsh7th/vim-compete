@@ -54,7 +54,6 @@ Type: number
 You can specify max item count.
 `compete` does not sort and show items that over this value.
 
-
 #### `g:compete_history_path = expand('~/.compete_history')`
 
 Type: string

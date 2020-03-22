@@ -57,9 +57,6 @@ endfunction
 inoremap <silent><nowait> <Plug>(compete-on-change) <C-r>=compete#on_change()<CR>
 function! s:on_insert_char_pre() abort
   if g:compete_enable
-    if v:char ==# "\<C-]>"
-      call compete#add_keywords([getline('.')])
-    endif
     noautocmd call feedkeys("\<Plug>(compete-on-change)", '')
   endif
 endfunction

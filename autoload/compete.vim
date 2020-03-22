@@ -29,7 +29,6 @@ endfunction
 " compete#on_insert_enter
 "
 function! compete#on_insert_enter() abort
-  let s:keywords = []
 
   let l:lnum = line('.')
   let l:min_above = max([1, l:lnum - g:compete_keyword_range])
@@ -58,6 +57,22 @@ function! compete#on_insert_enter() abort
   if l:below_len > l:min_len
     let l:lines += filter(l:below[l:min_len : -1], 'strlen(v:val) < 200')
   endif
+
+  let l:pattern = compete#pattern()
+
+  let l:unique = {}
+  let s:keywords = []
+  for l:keyword in split((' ' . join(l:lines, ' ') . ' '), l:pattern . '\zs.\{-}\ze' . l:pattern)
+    let l:keyword = trim(l:keyword)
+    if len(l:keyword) > 2
+      if has_key(l:unique, l:keyword)
+        continue
+      endif
+
+      let l:unique[l:keyword] =  1
+      call add(s:keywords, l:keyword)
+    endif
+  endfor
 endfunction
 
 "
@@ -85,26 +100,6 @@ function! compete#on_change() abort
 endfunction
 
 "
-" compete#add_keywords
-"
-function! compete#add_keywords(lines) abort
-  let l:pattern = compete#pattern()
-
-  let l:unique = {}
-  for l:keyword in split(' ' . join(a:lines, ' ') . ' ', l:pattern . '\zs.\{-}\ze' . l:pattern)
-    let l:keyword = trim(l:keyword)
-    if len(l:keyword) > 2
-      if has_key(l:unique, l:keyword)
-        continue
-      endif
-
-      let l:unique[l:keyword] =  1
-      call insert(s:keywords, l:keyword, 0)
-    endif
-  endfor
-endfunction
-
-"
 " compete#add_history
 "
 function! compete#add_history(word) abort
@@ -116,7 +111,7 @@ endfunction
 "
 function! compete#store_history() abort
   if strlen(g:compete_history_path) > 0
-    call writefile([json_encode(s:history)], g:compete_history_path)
+    call writefile(split(json_encode(s:history), "\n"), g:compete_history_path)
   endif
 endfunction
 
@@ -432,7 +427,8 @@ function! s:get_pattern() abort
   let l:keywords = split(&iskeyword, ',')
   let l:keywords = filter(l:keywords, { _, k -> match(k, '\d\+-\d\+') == -1 })
   let l:keywords = filter(l:keywords, { _, k -> k !=# '@' })
-  let l:pattern = '\%(' . join(map(l:keywords, { _, v -> '\V' . escape(v, '\') . '\m' }), '\|') . '\|\w\)*'
+  let l:keywords += ['_', '-']
+  let l:pattern = '\%(' . join(map(l:keywords, { _, v -> '\V' . escape(v, '\') . '\m' }), '\|') . '\|\w\)\+'
   let s:patterns[&iskeyword] = l:pattern
   return l:pattern
 endfunction
