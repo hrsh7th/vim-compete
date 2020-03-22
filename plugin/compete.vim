@@ -19,7 +19,7 @@ augroup compete
   autocmd!
   autocmd InsertEnter * call timer_start(0, { -> s:on_insert_enter() })
   autocmd InsertLeave * call s:on_insert_leave()
-  autocmd InsertCharPre * call s:on_insert_char_pre()
+  autocmd TextChangedI,TextChangedP * call s:on_change()
 augroup END
 
 "
@@ -42,20 +42,10 @@ function! s:on_insert_leave() abort
 endfunction
 
 "
-" on_insert_char_pre
+" on_change
 "
-function! s:on_insert_char_pre() abort
-  if g:compete_enable
-    noautocmd call feedkeys("\<Plug>(compete-on-change)", 't')
-  endif
-endfunction
-
-"
-" on_insert_char_pre
-"
-function! CompeteOnChange() abort
+function! s:on_change() abort
   call compete#on_change()
-  return ''
 endfunction
 
 call compete#source#buffer#register()
