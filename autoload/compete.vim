@@ -290,7 +290,7 @@ function! s:on_filter(...) abort
         \   '_priority': 2,
         \   '_source_priority': l:match.source.priority,
         \ }, l:item, 'keep'))
-      else
+      elseif g:compete_fuzzy
         let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
         if l:word =~? l:fuzzy
           let l:unique[l:word] = 1
