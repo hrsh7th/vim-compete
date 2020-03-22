@@ -13,8 +13,6 @@ let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'php': '\%(\$\|\w\)\%(\w\|\->\)*',
 \ }, 'keep')
 
-imap <silent> <Plug>(compete-on-change) <C-r>=CompeteOnChange()<CR>
-
 augroup compete
   autocmd!
   autocmd InsertEnter * call timer_start(0, { -> s:on_insert_enter() })
