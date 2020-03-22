@@ -11,7 +11,7 @@ let g:compete_item_count = get(g:, 'complete_item_count', 30)
 let g:compete_history_path = get(g:, 'compete_history_path', expand('~/.compete_history'))
 let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|&\|\w\)\%(\w\|#\|\.\)*',
-\   'php': '\%(\$\|\w\)\%(\w\|\->\)*',
+\   'php': '\%(\$\|\w\)\%(\w\)*',
 \ }, 'keep')
 
 augroup compete
