@@ -1,5 +1,6 @@
 let s:error = 0
 let s:keywords = []
+let s:history = {}
 let s:filter_timer_id = -1
 let s:state = {
 \   'changedtick': -1,
@@ -414,6 +415,12 @@ function! s:compare(context, item1, item2) abort
     return l:has_user_data1 ? -1 : 1
   endif
 
+  let l:frequency1 = get(s:history, a:item1.word, 0)
+  let l:frequency2 = get(s:history, a:item2.word, 0)
+  if l:frequency1 != l:frequency2
+    return l:frequency2 - l:frequency1
+  endif
+
   let l:idx1 = index(a:context.keywords, a:item1.word)
   let l:idx2 = index(a:context.keywords, a:item2.word)
   if l:idx1 != -1 && l:idx2 == -1
@@ -430,5 +437,37 @@ endfunction
 "
 function! s:selected() abort
   return complete_info(['selected']).selected != -1 && !empty(v:completed_item) && strlen(get(v:completed_item, 'word')) > 0
+endfunction
+
+"
+" compete#add_history
+"
+function! compete#add_history(word) abort
+  let s:history[a:word] = get(s:history, a:word, 0) + 1
+endfunction
+
+"
+" compete#store_history
+"
+function! compete#store_history() abort
+  if strlen(g:compete_history_path) > 0
+    call writefile([json_encode(s:history)], g:compete_history_path)
+  endif
+endfunction
+
+"
+" compete#restore_history
+"
+function! compete#restore_history() abort
+  if strlen(g:compete_history_path) > 0
+    if filereadable(g:compete_history_path)
+      try
+        let s:history = readfile(g:compete_history_path)
+        let s:history = type(s:history) == type([]) ? s:history : [s:history]
+        let s:history = json_decode(join(s:history, "\n"))
+      catch
+      endtry
+    endif
+  endif
 endfunction
 
