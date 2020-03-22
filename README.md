@@ -25,19 +25,12 @@ Type: boolean
 You can disable compete via this value.
 
 
-#### `g:compete_fuzzy = v:true`
+#### `g:compete_keyword_range = 1000`
 
-Type: boolean
+Type: number
 
-You can disable fuzzy matching via this value.
-
-
-#### `g:compete_patterns = { ... }`
-
-Type: dict
-
-You can specify keyword patterns per filetype.
-The key is filetype and value is vim-regex.
+You can specify range to cache keywordss.
+If you specify 1000, `compete` will cache lines thats in the range of `line('.') - 1000` ~ `line('.') + 1000`.
 
 
 #### `g:compete_throttle = 100`
@@ -47,19 +40,35 @@ Type: number
 You can specify delay time to filter items.
 
 
+#### `g:compete_fuzzy = v:true`
+
+Type: boolean
+
+You can disable fuzzy matching via this value.
+
+
 #### `g:compete_item_count = 30`
 
 Type: number
 
-You can specify max item count to show pum.
-This improve performance.
+You can specify max item count.
+`compete` does not sort and show items that over this value.
 
-#### `g:compete_keyword_range = 1000`
 
-Type: number
+#### `g:compete_history_path = expand('~/.compete_history')`
 
-You can specify range to cache keywordss.
-If you specify 1000, `compete` will cache lines thats in the range of `line('.') - 1000` ~ `line('.') + 1000`.
+Type: string
+
+You can specify completion history file path.
+This file will used to sort items.
+
+
+#### `g:compete_patterns = { ... }`
+
+Type: dict
+
+You can specify keyword patterns per filetype.
+The key is filetype and value is vim-regex.
 
 
 # built-in source
@@ -82,6 +91,9 @@ Filepath completion.
 #### Well handling multi sources
 - multi sources support is easy but does not easy to support multi start position
   - `compete` aims to well handle it
+
+#### Simple `locality` and `frequency` sorting.
+- `compete` will sort items to prefer frequency or locality.
 
 #### Async throttled filtering with no flicker
 - auto completion plugin filter items but vim's native completion feature does it too
