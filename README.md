@@ -25,7 +25,7 @@ Type: boolean
 You can disable compete via this value.
 
 
-#### `g:compete_keyword_range = 100`
+#### `g:compete_keyword_range = 1000`
 
 Type: number
 
