@@ -345,8 +345,7 @@ function! s:create_complete_callback(context, source, id) abort
     let l:match.items = a:match.items
     let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
-    call timer_stop(s:filter_timer_id)
-    let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_change'))
+    call s:filter()
   endfunction
 
   return function(l:ctx.callback, [a:context, a:source, a:id])
