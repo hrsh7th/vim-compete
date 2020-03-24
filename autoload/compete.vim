@@ -61,7 +61,7 @@ function! compete#on_insert_enter() abort
 
   let l:unique = {}
   let s:keywords = []
-  for l:keyword in split((' ' . join(l:lines, ' ') . ' '), l:pattern . '\zs.\{-}\ze' . l:pattern)
+  for l:keyword in split((' ' . join(l:lines, ' ') . ' '), l:pattern . '\zs.\{-1,}\ze' . l:pattern)
     let l:keyword = trim(l:keyword)
     if len(l:keyword) > 2
       if has_key(l:unique, l:keyword)
