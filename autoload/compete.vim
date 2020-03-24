@@ -29,7 +29,6 @@ endfunction
 " compete#on_insert_enter
 "
 function! compete#on_insert_enter() abort
-
   let l:lnum = line('.')
   let l:min_above = max([1, l:lnum - g:compete_keyword_range])
   let l:max_below = min([line('$'), l:lnum + g:compete_keyword_range + 1])

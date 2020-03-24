@@ -25,15 +25,15 @@ Type: boolean
 You can disable compete via this value.
 
 
-#### `g:compete_keyword_range = 1000`
+#### `g:compete_keyword_range = 100`
 
 Type: number
 
 You can specify range to cache keywordss.
-If you specify 1000, `compete` will cache lines thats in the range of `line('.') - 1000` ~ `line('.') + 1000`.
+If you specify 100, `compete` will cache lines thats in the range of `line('.') - 100` ~ `line('.') + 100`.
 
 
-#### `g:compete_throttle = 100`
+#### `g:compete_throttle = 200`
 
 Type: number
 
