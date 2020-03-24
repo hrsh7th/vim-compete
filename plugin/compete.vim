@@ -10,16 +10,16 @@ let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
 let g:compete_item_count = get(g:, 'complete_item_count', 30)
 let g:compete_history_path = get(g:, 'compete_history_path', expand('~/.compete_history'))
 let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
-\   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|&\|\w\)\%(\w\|#\|\.\)*',
+\   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|\&\|\w\)\%(\w\|#\|\.\)*',
 \   'php': '\%(\$\|\w\)\%(\w\)*',
 \ }, 'keep')
 
 augroup compete
   autocmd!
-  autocmd InsertEnter * call timer_start(0, { -> s:on_insert_enter() })
+  autocmd InsertEnter * call timer_start(200, { -> s:on_insert_enter() })
   autocmd InsertLeave * call s:on_insert_leave()
   autocmd CompleteDone * call s:on_complete_done()
-  autocmd InsertCharPre * call s:on_insert_char_pre()
+  autocmd TextChangedI,TextChangedP * call s:on_change()
   autocmd VimLeavePre * call s:on_vim_leave_pre()
 augroup END
 
@@ -54,10 +54,9 @@ endfunction
 "
 " on_change
 "
-inoremap <silent><nowait> <Plug>(compete-on-change) <C-r>=compete#on_change()<CR>
-function! s:on_insert_char_pre() abort
+function! s:on_change() abort
   if g:compete_enable
-    noautocmd call feedkeys("\<Plug>(compete-on-change)", '')
+    call compete#on_change()
   endif
 endfunction
 
