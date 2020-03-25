@@ -14,9 +14,13 @@ let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'php': '\%(\$\|\h\)\%(\w\)*',
 \ }, 'keep')
 
+let s:state = {
+\   'insert_enter_timer_id': -1,
+\ }
+
 augroup compete
   autocmd!
-  autocmd InsertEnter * call timer_start(200, { -> s:on_insert_enter() })
+  autocmd InsertEnter * call s:on_insert_enter()
   autocmd InsertLeave * call s:on_insert_leave()
   autocmd CompleteDone * call s:on_complete_done()
   autocmd TextChangedI,TextChangedP * call s:on_change()
@@ -28,8 +32,15 @@ augroup END
 "
 function! s:on_insert_enter() abort
   if g:compete_enable
-    call compete#on_insert_enter()
-    call compete#on_change()
+    let l:ctx = {}
+    function! l:ctx.callback() abort
+      if mode()[0] ==# 'i'
+        call compete#on_insert_enter()
+        call compete#on_change()
+      endif
+    endfunction
+    call timer_stop(s:state.insert_enter_timer_id)
+    let s:state.insert_enter_timer_id = timer_start(100, { -> l:ctx.callback() })
   endif
 endfunction
 
