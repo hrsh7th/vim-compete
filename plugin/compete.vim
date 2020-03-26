@@ -5,7 +5,7 @@ let g:loaded_compete = v:true
 
 let g:compete_enable = get(g:, 'compete_enable', v:true)
 let g:compete_keyword_range = get(g:, 'compete_keyword_cache', 1000)
-let g:compete_throttle = get(g:, 'compete_throttle', 200)
+let g:compete_throttle = get(g:, 'compete_throttle', 100)
 let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
 let g:compete_item_count = get(g:, 'complete_item_count', 30)
 let g:compete_history_path = get(g:, 'compete_history_path', expand('~/.compete_history'))

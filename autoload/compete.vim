@@ -2,6 +2,7 @@ let s:error = 0
 let s:keywords = []
 let s:history = {}
 let s:filter_timer_id = -1
+let s:complete_timer_id = -1
 let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
@@ -192,24 +193,40 @@ function! s:trigger(context, source) abort
   endif
   let l:match = s:state.matches[a:source.name]
 
+  " Get complete start col for chars and patterns.
   let [l:input, l:input_start, l:_] = matchstrpos(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
-  if l:chars !=# ''
-    let l:start = a:context.col
-  elseif l:input_start != -1 && (l:input_start + a:source.min_length + 1) <= a:context.col
-    let l:start = l:input_start + 1
-  else
+
+  " Does not match chars and patterns.
+  if l:chars ==# '' && (l:input_start == -1 || (l:input_start + a:source.min_length + 1) > a:context.col)
     let l:match.id += 1
     let l:match.status = 'waiting'
     let l:match.items = []
     let l:match.lnum = -1
     let l:match.start = -1
+    let l:match.start_char = -1
     let l:match.incomplete = v:false
     return -1
   endif
 
-  " avoid request when start position does not changed.
-  if l:start == l:match.start && !l:match.incomplete
+  " If source state is incomplete, we should force re-complete.
+  let l:force_refresh = l:match.incomplete
+
+  " If matched trigger chars, we should force re-complete.
+  let l:char_start = -1
+  if l:chars !=# ''
+    let l:force_refresh = v:true
+    let l:char_start = a:context.col
+    let l:start = l:char_start
+  endif
+
+  " If matched patterns, we should start complete.
+  if l:input_start != -1 && (l:input_start + a:source.min_length + 1) <= a:context.col
+    let l:start = l:input_start + 1
+  endif
+
+  " Avoid request when start position does not changed.
+  if l:start == l:match.start && !l:force_refresh
     return l:start
   endif
 
@@ -218,6 +235,7 @@ function! s:trigger(context, source) abort
   let l:match.status = l:match.start == l:start ? 'completed' : 'processing'
   let l:match.items = l:match.start == l:start ? l:match.items : []
   let l:match.start = l:start
+  let l:match.char_start = l:char_start
   call a:source.complete(
   \   extend({
   \     'start': l:start,
@@ -228,6 +246,7 @@ function! s:trigger(context, source) abort
   \ )
   return l:match.start
 endfunction
+
 
 "
 " filter
@@ -241,7 +260,6 @@ function! s:filter(...) abort
     let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_change'))
   endif
 endfunction
-
 
 "
 " on_filter
@@ -262,9 +280,16 @@ function! s:on_filter(...) abort
   let l:fuzzy_items = []
 
   for l:match in l:matches
+    " We should fix word for three kind of complete start col.
+    " 1. actual... s:state.start
+    " 2. pattern... l:match.start
+    " 3. trigger... l:match.char_start
     let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
-    let l:unique = {}
+    if l:match.char_start != -1
+      let l:short .= strpart(l:context.before_line, l:match.start - 1, l:match.char_start - l:match.start)
+    endif
 
+    let l:unique = {}
     for l:item in l:match.items
       let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
       if has_key(l:unique, l:word)
@@ -305,6 +330,7 @@ function! s:on_filter(...) abort
     endfor
   endfor
 
+  " Priority order sort for match kind.
   let l:items = l:prefix_just_items + l:prefix_icase_items + l:fuzzy_items
   let l:items = l:items[0 : min([len(l:items) - 1, g:compete_item_count])]
 
@@ -345,7 +371,8 @@ function! s:create_complete_callback(context, source, id) abort
     let l:match.items = a:match.items
     let l:match.incomplete = get(a:match, 'incomplete', v:false)
 
-    call s:filter()
+    call timer_stop(s:complete_timer_id)
+    let s:complete_timer_id = timer_start(100, function('s:filter'))
   endfunction
 
   return function(l:ctx.callback, [a:context, a:source, a:id])
@@ -359,6 +386,7 @@ function! s:create_abort_callback(context, source, id) abort
   function! l:ctx.callback(context, source, id) abort
     let l:match = get(s:state.matches, a:source.name, {})
     if has_key(l:match, 'id')
+      " Increment l:match.id to abort completion.
       let l:match.id += 1
       let l:match.status = 'waiting'
       let l:match.items = []
