@@ -300,7 +300,6 @@ function! s:on_filter(...) abort
         let l:unique[l:word] = 1
         call add(l:prefix_just_items, extend({
         \   'word': l:word,
-        \   'abbr': get(l:item, 'abbr', l:item.word),
         \   'equal': 1,
         \   '_as_is': stridx(l:item.abbr, l:word) == 0,
         \   '_priority': 1,
@@ -321,7 +320,6 @@ function! s:on_filter(...) abort
           let l:unique[l:word] = 1
           call add(l:fuzzy_items, extend({
           \   'word': l:word,
-          \   'abbr': get(l:item, 'abbr', l:item.word),
           \   'equal': 1,
           \   '_as_is': stridx(l:item.abbr, l:word) == 0,
           \   '_priority': 3,
