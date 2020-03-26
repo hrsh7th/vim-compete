@@ -302,6 +302,7 @@ function! s:on_filter(...) abort
         \   'word': l:word,
         \   'abbr': get(l:item, 'abbr', l:item.word),
         \   'equal': 1,
+        \   '_as_is': stridx(l:item.abbr, l:word) == 0,
         \   '_priority': 1,
         \   '_source_priority': l:match.source.priority,
         \ }, l:item, 'keep'))
@@ -309,8 +310,8 @@ function! s:on_filter(...) abort
         let l:unique[l:word] = 1
         call add(l:prefix_icase_items, extend({
         \   'word': l:word,
-        \   'abbr': get(l:item, 'abbr', l:item.word),
         \   'equal': 1,
+        \   '_as_is': stridx(l:item.abbr, l:word) == 0,
         \   '_priority': 2,
         \   '_source_priority': l:match.source.priority,
         \ }, l:item, 'keep'))
@@ -322,6 +323,7 @@ function! s:on_filter(...) abort
           \   'word': l:word,
           \   'abbr': get(l:item, 'abbr', l:item.word),
           \   'equal': 1,
+          \   '_as_is': stridx(l:item.abbr, l:word) == 0,
           \   '_priority': 3,
           \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
@@ -474,6 +476,10 @@ function! s:compare(context, item1, item2) abort
   let l:has_user_data1 = has_key(a:item1, 'user_data')
   if l:has_user_data1 != has_key(a:item2, 'user_data')
     return l:has_user_data1 ? -1 : 1
+  endif
+
+  if a:item1._as_is != a:item2._as_is
+    return a:item1._as_is ? -1 : 1
   endif
 
   let l:frequency1 = get(s:history, a:item1.word, 0)
