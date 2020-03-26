@@ -87,9 +87,9 @@ Filepath completion.
 
 # feature
 
-#### Well handling multi sources
+#### Well handling multi start position
 - multi sources support is easy but does not easy to support multi start position
-  - `compete` aims to well handle it
+    - `compete` supports `complete start position` `word pattern position` and `trigger character position`.
 
 #### Simple `locality` and `frequency` sorting.
 - `compete` will sort items to prefer frequency or locality.
