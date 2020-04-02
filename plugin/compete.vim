@@ -8,7 +8,6 @@ let g:compete_keyword_range = get(g:, 'compete_keyword_cache', 1000)
 let g:compete_throttle_time = get(g:, 'compete_throttle_time', 200)
 let g:compete_source_wait_time = get(g:, 'compete_source_wait_time', 200)
 let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
-let g:compete_history_path = get(g:, 'compete_history_path', expand('~/.compete_history'))
 let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|\&\|\h\)\%(\w\|#\|\.\)*',
 \   'php': '\%(\$\|\h\)\%(\w\)*',
@@ -70,19 +69,6 @@ function! s:on_change() abort
     call compete#on_change()
   endif
 endfunction
-
-"
-" on_vim_leave_pre
-"
-function! s:on_vim_leave_pre() abort
-  if g:compete_enable
-    call compete#store_history()
-  endif
-endfunction
-
-if strlen(g:compete_history_path) > 0
-  call compete#restore_history()
-endif
 
 call compete#source#buffer#register()
 call compete#source#file#register()

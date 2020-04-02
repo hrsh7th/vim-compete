@@ -33,11 +33,18 @@ You can specify range to cache keywordss.
 If you specify 100, `compete` will cache lines thats in the range of `line('.') - 100` ~ `line('.') + 100`.
 
 
-#### `g:compete_throttle = 200`
+#### `g:compete_throttle_time = 200`
 
 Type: number
 
 You can specify delay time to filter items.
+
+
+#### `g:compete_source_wait_time = 200`
+
+Type: number
+
+You can specify delay time to wait incomplete sources.
 
 
 #### `g:compete_fuzzy = v:true`
@@ -45,21 +52,6 @@ You can specify delay time to filter items.
 Type: boolean
 
 You can disable fuzzy matching via this value.
-
-
-#### `g:compete_item_count = 30`
-
-Type: number
-
-You can specify max item count.
-`compete` does not sort and show items that over this value.
-
-#### `g:compete_history_path = expand('~/.compete_history')`
-
-Type: string
-
-You can specify completion history file path.
-This file will used to sort items.
 
 
 #### `g:compete_patterns = { ... }`

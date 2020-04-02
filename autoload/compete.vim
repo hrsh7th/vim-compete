@@ -108,31 +108,6 @@ function! compete#add_history(word) abort
 endfunction
 
 "
-" compete#store_history
-"
-function! compete#store_history() abort
-  if strlen(g:compete_history_path) > 0
-    call writefile(split(json_encode(s:history), "\n"), g:compete_history_path)
-  endif
-endfunction
-
-"
-" compete#restore_history
-"
-function! compete#restore_history() abort
-  if strlen(g:compete_history_path) > 0
-    if filereadable(g:compete_history_path)
-      try
-        let s:history = readfile(g:compete_history_path)
-        let s:history = type(s:history) == type([]) ? s:history : [s:history]
-        let s:history = json_decode(join(s:history, "\n"))
-      catch
-      endtry
-    endif
-  endif
-endfunction
-
-"
 " compete#pattern
 "
 function! compete#pattern(...) abort
