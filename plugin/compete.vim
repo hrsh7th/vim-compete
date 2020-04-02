@@ -5,9 +5,9 @@ let g:loaded_compete = v:true
 
 let g:compete_enable = get(g:, 'compete_enable', v:true)
 let g:compete_keyword_range = get(g:, 'compete_keyword_cache', 1000)
-let g:compete_throttle = get(g:, 'compete_throttle', 100)
+let g:compete_throttle_time = get(g:, 'compete_throttle_time', 200)
+let g:compete_source_wait_time = get(g:, 'compete_source_wait_time', 200)
 let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
-let g:compete_item_count = get(g:, 'complete_item_count', 30)
 let g:compete_history_path = get(g:, 'compete_history_path', expand('~/.compete_history'))
 let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|\&\|\h\)\%(\w\|#\|\.\)*',
@@ -40,7 +40,7 @@ function! s:on_insert_enter() abort
       endif
     endfunction
     call timer_stop(s:state.insert_enter_timer_id)
-    let s:state.insert_enter_timer_id = timer_start(100, { -> l:ctx.callback() })
+    let s:state.insert_enter_timer_id = timer_start(200, { -> l:ctx.callback() })
   endif
 endfunction
 

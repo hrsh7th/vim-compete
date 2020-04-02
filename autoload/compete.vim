@@ -1,8 +1,9 @@
 let s:error = 0
-let s:keywords = []
+let s:keywords = {}
 let s:history = {}
 let s:filter_timer_id = -1
-let s:complete_timer_id = -1
+let s:completed_timer_id = -1
+let s:complete_queue = []
 let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
@@ -60,17 +61,17 @@ function! compete#on_insert_enter() abort
 
   let l:pattern = compete#pattern()
 
-  let l:unique = {}
-  let s:keywords = []
+  let s:keywords = {}
+  let l:index = 0
   for l:keyword in split((' ' . join(l:lines, ' ') . ' '), l:pattern . '\zs.\{-1,}\ze' . l:pattern)
     let l:keyword = trim(l:keyword)
     if len(l:keyword) > 2
-      if has_key(l:unique, l:keyword)
+      if has_key(s:keywords, l:keyword)
         continue
       endif
 
-      let l:unique[l:keyword] =  1
-      call add(s:keywords, l:keyword)
+      let s:keywords[l:keyword] = l:index
+      let l:index += 1
     endif
   endfor
 endfunction
@@ -168,7 +169,7 @@ function! s:on_change(...) abort
     if len(l:starts) > 0
       let s:state.start = l:start
       let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start)
-      call s:filter()
+      call s:filter(v:false)
     endif
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
@@ -204,7 +205,7 @@ function! s:trigger(context, source) abort
     let l:match.items = []
     let l:match.lnum = -1
     let l:match.start = -1
-    let l:match.start_char = -1
+    let l:match.char_start = -1
     let l:match.incomplete = v:false
     return -1
   endif
@@ -240,24 +241,23 @@ function! s:trigger(context, source) abort
   \   extend({
   \     'start': l:start,
   \     'input': l:input,
-  \     'abort': s:create_abort_callback(a:context, a:source, l:match.id),
+  \     'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
   \   }, a:context, 'keep'),
-  \   s:create_complete_callback(a:context, a:source, l:match.id)
+  \   function('s:complete_callback', [a:context, a:source, l:match.id])
   \ )
   return l:match.start
 endfunction
 
-
 "
 " filter
 "
-function! s:filter(...) abort
-  let l:time = len(s:state.times) == 0 ? g:compete_throttle : reltimefloat(reltime(s:state.times)) * 1000
-  if l:time >= g:compete_throttle
+function! s:filter(force) abort
+  let l:time = len(s:state.times) == 0 ? g:compete_throttle_time : reltimefloat(reltime(s:state.times)) * 1000
+  if a:force || l:time >= g:compete_throttle_time
     call s:on_filter()
   else
     call timer_stop(s:filter_timer_id)
-    let s:filter_timer_id = timer_start(g:compete_throttle, function('s:on_change'))
+    let s:filter_timer_id = timer_start(g:compete_throttle_time, function('s:on_filter'))
   endif
 endfunction
 
@@ -274,7 +274,7 @@ function! s:on_filter(...) abort
   endif
 
   let l:context = s:context()
-  let l:matches = filter(s:get_matches(), { _, match -> match.status ==# 'completed' })
+  let l:matches = s:get_matches(['completed'])
   let l:prefix_just_items = []
   let l:prefix_icase_items = []
   let l:fuzzy_items = []
@@ -295,35 +295,35 @@ function! s:on_filter(...) abort
       if has_key(l:unique, l:word)
         continue
       endif
+      let l:unique[l:word] = 1
+
+      " Check first character for performance.
+      if l:word[0] !~? s:state.input[0]
+        continue
+      endif
 
       if stridx(l:word, s:state.input) == 0
-        let l:unique[l:word] = 1
         call add(l:prefix_just_items, extend({
         \   'word': l:word,
         \   'equal': 1,
         \   '_as_is': stridx(l:item.abbr, l:word) == 0,
         \   '_priority': 1,
-        \   '_source_priority': l:match.source.priority,
         \ }, l:item, 'keep'))
-      elseif l:word =~? '^\V' . s:state.input
-        let l:unique[l:word] = 1
+      elseif l:word =~? '^' . s:state.input
         call add(l:prefix_icase_items, extend({
         \   'word': l:word,
         \   'equal': 1,
         \   '_as_is': stridx(l:item.abbr, l:word) == 0,
         \   '_priority': 2,
-        \   '_source_priority': l:match.source.priority,
         \ }, l:item, 'keep'))
       elseif g:compete_fuzzy
-        let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}\V'
+        let l:fuzzy = '^' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '.\{-}') . '.\{-}'
         if l:word =~? l:fuzzy
-          let l:unique[l:word] = 1
           call add(l:fuzzy_items, extend({
           \   'word': l:word,
           \   'equal': 1,
           \   '_as_is': stridx(l:item.abbr, l:word) == 0,
           \   '_priority': 3,
-          \   '_source_priority': l:match.source.priority,
           \ }, l:item, 'keep'))
         endif
       endif
@@ -332,70 +332,82 @@ function! s:on_filter(...) abort
 
   " Priority order sort for match kind.
   let l:items = l:prefix_just_items + l:prefix_icase_items + l:fuzzy_items
-  let l:items = l:items[0 : min([len(l:items) - 1, g:compete_item_count])]
 
   " complete.
   let s:state.times = reltime()
-  let s:state.items = sort(l:items, function('s:compare', [l:context]))
+  let s:state.items = sort(l:items, function('s:compare'))
   call complete(s:state.start, s:state.items)
 endfunction
 
 "
 " get_matches
 "
-function! s:get_matches() abort
+function! s:get_matches(statuses) abort
   let l:matches = values(s:state.matches)
-  let l:matches = filter(l:matches, 'v:val.status ==# "completed" || v:val.status ==# "processing"')
+  let l:matches = filter(l:matches, 'index(a:statuses, v:val.status) >= 0')
   let l:matches = sort(l:matches, { a, b -> b.source.priority - a.source.priority })
   return l:matches
 endfunction
 
 "
-" create_complete_callback
+" complete_callback
 "
-function! s:create_complete_callback(context, source, id) abort
-  let l:ctx = {}
-  function! l:ctx.callback(context, source, id, match) abort
-    let l:match = get(s:state.matches, a:source.name, {})
-    if !has_key(l:match, 'id') || a:id < l:match.id
-      return
-    endif
+function! s:complete_callback(context, source, id, data) abort
+  let l:match = get(s:state.matches, a:source.name, {})
+  if !has_key(l:match, 'id') || a:id < l:match.id
+    return
+  endif
+  let l:match.status = 'retrieved'
 
+  let l:ctx = {}
+  function! l:ctx.callback(context, source, id, data, match, ...) abort
     let l:context = s:context()
     if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
       return
     endif
 
-    let l:match.status = 'completed'
-    let l:match.lnum = a:context.lnum
-    let l:match.items = a:match.items
-    let l:match.incomplete = get(a:match, 'incomplete', v:false)
-
-    call timer_stop(s:complete_timer_id)
-    let s:complete_timer_id = timer_start(100, function('s:filter'))
+    let a:match.status = 'completed'
+    let a:match.lnum = a:context.lnum
+    let a:match.items = map(a:data.items, function('s:normalize_item', [a:source]))
+    let a:match.incomplete = get(a:data, 'incomplete', v:false)
   endfunction
+  call add(s:complete_queue, function(l:ctx.callback, [a:context, a:source, a:id, a:data, l:match]))
 
-  return function(l:ctx.callback, [a:context, a:source, a:id])
+  if len(s:get_matches(['incomplete'])) == 0
+    return s:completed()
+  endif
+
+  call timer_stop(s:completed_timer_id)
+  let s:completed_timer_id = timer_start(g:compete_source_wait_time, function('s:completed'))
 endfunction
 
 "
-" create_abort_callback
+" abort_callback
 "
-function! s:create_abort_callback(context, source, id) abort
-  let l:ctx = {}
-  function! l:ctx.callback(context, source, id) abort
-    let l:match = get(s:state.matches, a:source.name, {})
-    if has_key(l:match, 'id')
-      " Increment l:match.id to abort completion.
-      let l:match.id += 1
-      let l:match.status = 'waiting'
-      let l:match.items = []
-      let l:match.lnum = -1
-      let l:match.start = -1
-      let l:match.incomplete = v:false
-    endif
-  endfunction
-  return function(l:ctx.callback, [a:context, a:source, a:id])
+function! s:abort_callback(context, source, id) abort
+  let l:match = get(s:state.matches, a:source.name, {})
+  if has_key(l:match, 'id')
+    " Increment l:match.id to abort completion.
+    let l:match.id += 1
+    let l:match.status = 'waiting'
+    let l:match.items = []
+    let l:match.lnum = -1
+    let l:match.start = -1
+    let l:match.incomplete = v:false
+  endif
+endfunction
+
+"
+" completed
+"
+function! s:completed(...) abort
+  if len(s:complete_queue) != 0
+    for l:i in range(0, len(s:complete_queue) - 1)
+      call s:complete_queue[l:i]()
+    endfor
+    let s:complete_queue = []
+    call s:filter(v:true)
+  endif
 endfunction
 
 "
@@ -411,7 +423,7 @@ function! s:context() abort
   \   'col': l:col,
   \   'before_char': s:get_before_char(l:lnum, l:before_line),
   \   'before_line': l:before_line,
-  \   'keywords': copy(s:keywords),
+  \   'keywords': keys(s:keywords),
   \ }
 endfunction
 
@@ -442,6 +454,16 @@ function! s:find(haystack, needle, ...) abort
 endfunction
 
 "
+" s:normalize_item
+"
+function! s:normalize_item(source, idx, item) abort
+  let a:item.abbr = get(a:item, 'abbr', a:item.word)
+  let a:item.user_data = get(a:item, 'user_data', '')
+  let a:item._source_priority = a:source.priority
+  return a:item
+endfunction
+
+"
 " get_pattern
 "
 let s:patterns = {}
@@ -462,7 +484,7 @@ endfunction
 "
 " compare
 "
-function! s:compare(context, item1, item2) abort
+function! s:compare(item1, item2) abort
   if a:item1._source_priority != a:item2._source_priority
     return a:item2._source_priority - a:item1._source_priority
   endif
@@ -471,13 +493,14 @@ function! s:compare(context, item1, item2) abort
     return a:item1._priority - a:item2._priority
   endif
 
-  let l:has_user_data1 = has_key(a:item1, 'user_data')
-  if l:has_user_data1 != has_key(a:item2, 'user_data')
-    return l:has_user_data1 ? -1 : 1
+  if a:item1._as_is != a:item2._as_is
+    return a:item2._as_is - a:item1._as_is
   endif
 
-  if a:item1._as_is != a:item2._as_is
-    return a:item1._as_is ? -1 : 1
+  if a:item1.user_data !=# '' && a:item2.user_data ==# ''
+    return -1
+  elseif a:item1.user_data ==# '' && a:item2.user_data !=# ''
+    return 1
   endif
 
   let l:frequency1 = get(s:history, a:item1.word, 0)
@@ -486,15 +509,13 @@ function! s:compare(context, item1, item2) abort
     return l:frequency2 - l:frequency1
   endif
 
-  let l:idx1 = index(a:context.keywords, a:item1.word)
-  let l:idx2 = index(a:context.keywords, a:item2.word)
-  if l:idx1 != -1 && l:idx2 == -1
-    return -1
+  let l:idx1 = get(s:keywords, a:item1.word, 0)
+  let l:idx2 = get(s:keywords, a:item2.word, 0)
+  if l:idx1 != l:idx2
+    return l:idx2 - l:idx1
   endif
-  if l:idx1 == -1 && l:idx2 != -1
-    return 1
-  endif
-  return l:idx1 - l:idx2
+
+  return 0
 endfunction
 
 "
