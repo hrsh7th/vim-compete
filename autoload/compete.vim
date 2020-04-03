@@ -1,9 +1,11 @@
 let s:error = 0
 let s:keywords = {}
 let s:history = {}
+let s:on_change_timer_id = -1
 let s:filter_timer_id = -1
 let s:completed_timer_id = -1
 let s:complete_queue = []
+
 let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
@@ -95,7 +97,8 @@ function! compete#on_change() abort
     return ''
   endif
 
-  call s:on_change()
+  call timer_stop(s:on_change_timer_id)
+  let s:on_change_timer_id = timer_start(0, function('s:on_change'))
 
   return ''
 endfunction
@@ -163,6 +166,7 @@ function! s:trigger(context, source) abort
     \   'status': 'waiting',
     \   'lnum': -1,
     \   'start': -1,
+    \   'char_start': -1,
     \   'items': [],
     \   'incomplete': v:false,
     \ }
@@ -348,11 +352,10 @@ function! s:complete_callback(context, source, id, data) abort
   endfunction
   call add(s:complete_queue, function(l:ctx.callback, [a:context, a:source, a:id, a:data, l:match]))
 
+  call timer_stop(s:completed_timer_id)
   if len(s:get_matches(['incomplete'])) == 0
     return s:completed()
   endif
-
-  call timer_stop(s:completed_timer_id)
   let s:completed_timer_id = timer_start(g:compete_source_wait_time, function('s:completed'))
 endfunction
 
@@ -411,12 +414,15 @@ function! s:get_before_char(lnum, before_line) abort
     let l:line = l:lnum == a:lnum ? a:before_line : getline(l:lnum)
     let l:char = matchstr(l:line, '\([^[:blank:]]\)\ze\s*$')
     if l:char !=# ''
-      return l:char
+      if index(g:compete_linewise_chars, l:char) >= 0
+        return l:char
+      endif
+      break
     endif
     let l:lnum -= 1
   endwhile
 
-  return ''
+  return a:before_line[-1:-1]
 endfunction
 
 "

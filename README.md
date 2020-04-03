@@ -47,6 +47,13 @@ Type: number
 You can specify delay time to wait incomplete sources.
 
 
+#### `g:compete_linewise_chars = [',', '{']`
+
+Type: string[]
+
+You can specify trigger chars thats will be searched in the current or above lines.
+
+
 #### `g:compete_fuzzy = v:true`
 
 Type: boolean
