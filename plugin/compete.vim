@@ -24,7 +24,6 @@ augroup compete
   autocmd InsertLeave * call s:on_insert_leave()
   autocmd CompleteDone * call s:on_complete_done()
   autocmd TextChangedI,TextChangedP * call s:on_change()
-  autocmd VimLeavePre * call s:on_vim_leave_pre()
 augroup END
 
 "
