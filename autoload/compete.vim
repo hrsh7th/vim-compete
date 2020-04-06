@@ -85,6 +85,7 @@ function! compete#close() abort
   for l:match in values(s:state.matches)
     let l:match.items = []
   endfor
+  return ''
 endfunction
 
 "
