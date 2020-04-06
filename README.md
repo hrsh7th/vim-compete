@@ -69,6 +69,13 @@ You can specify keyword patterns per filetype.
 The key is filetype and value is vim-regex.
 
 
+#### `g:compete_min_length = 1`
+
+Type: number
+
+You can specify the length to starting auto-completion.
+
+
 # built-in source
 
 #### buffer
