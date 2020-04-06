@@ -178,7 +178,7 @@ function! s:trigger(context, source) abort
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
 
   " Does not match chars and patterns.
-  if l:chars ==# '' && (l:input_start == -1 || (l:input_start + a:source.min_length + 1) > a:context.col)
+  if l:chars ==# '' && (l:input_start == -1 || (l:input_start + g:compete_min_length + 1) > a:context.col)
     let l:match.id += 1
     let l:match.status = 'waiting'
     let l:match.items = []
@@ -201,7 +201,7 @@ function! s:trigger(context, source) abort
   endif
 
   " If matched patterns, we should start complete.
-  if l:input_start != -1 && (l:input_start + a:source.min_length + 1) <= a:context.col
+  if l:input_start != -1 && (l:input_start + g:compete_min_length + 1) <= a:context.col
     let l:start = l:input_start + 1
   endif
 
@@ -216,14 +216,17 @@ function! s:trigger(context, source) abort
   let l:match.items = l:match.start == l:start ? l:match.items : []
   let l:match.start = l:start
   let l:match.char_start = l:char_start
-  call a:source.complete(
-  \   extend({
-  \     'start': l:start,
-  \     'input': l:input,
-  \     'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
-  \   }, a:context, 'keep'),
-  \   function('s:complete_callback', [a:context, a:source, l:match.id])
-  \ )
+  call timer_start(0, { ->
+  \   a:source.complete(
+  \     extend({
+  \       'start': l:start,
+  \       'input': l:input,
+  \       'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
+  \     }, a:context, 'keep'),
+  \     function('s:complete_callback', [a:context, a:source, l:match.id])
+  \   )
+  \ })
+
   return l:match.start
 endfunction
 
@@ -353,7 +356,7 @@ function! s:complete_callback(context, source, id, data) abort
   call add(s:complete_queue, function(l:ctx.callback, [a:context, a:source, a:id, a:data, l:match]))
 
   call timer_stop(s:completed_timer_id)
-  if len(s:get_matches(['incomplete'])) == 0
+  if len(s:get_matches(['processing'])) == 0
     return s:completed()
   endif
   let s:completed_timer_id = timer_start(g:compete_source_wait_time, function('s:completed'))

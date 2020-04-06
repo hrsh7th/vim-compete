@@ -15,6 +15,7 @@ function! compete#source#file#register() abort
   \ })
 endfunction
 
+
 "
 " complete
 "

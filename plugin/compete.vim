@@ -9,6 +9,7 @@ let g:compete_throttle_time = get(g:, 'compete_throttle_time', 200)
 let g:compete_source_wait_time = get(g:, 'compete_source_wait_time', 200)
 let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
 let g:compete_linewise_chars = get(g:, 'compete_linewise_chars', [',', '{'])
+let g:compete_min_length = get(g:, 'compete_min_lenegth', 1)
 let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 \   'vim': '\%(a:\|l:\|s:\|b:\|w:\|t:\|g:\|v:\|\&\|\h\)\%(\w\|#\|\.\)*',
 \   'php': '\%(\$\|\h\)\%(\w\)*',
