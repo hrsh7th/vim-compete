@@ -79,6 +79,15 @@ function! compete#on_insert_enter() abort
 endfunction
 
 "
+" compete#close
+"
+function! compete#close() abort
+  for l:match in values(s:state.matches)
+    let l:match.items = []
+  endfor
+endfunction
+
+"
 " compete#on_change
 "
 function! compete#on_change() abort

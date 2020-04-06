@@ -59,6 +59,7 @@ endfunction
 function! s:on_complete_done() abort
   if !empty(v:completed_item)
     call compete#add_history(get(v:completed_item, 'word', ''))
+    call compete#close()
   endif
 endfunction
 
