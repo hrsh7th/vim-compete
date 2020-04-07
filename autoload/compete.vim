@@ -9,10 +9,13 @@ let s:complete_queue = []
 let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
-\   'input': '',
 \   'items': [],
 \   'times': [],
 \   'matches': {},
+\   'input': '',
+\   'revision': 0,
+\   '_input': '',
+\   '_revision': 0,
 \ }
 
 "
@@ -22,10 +25,13 @@ function! compete#on_clear() abort
   let s:state = {
   \   'changedtick': -1,
   \   'start': -1,
-  \   'input': '',
   \   'items': [],
   \   'times': [],
   \   'matches': {},
+  \   'input': '',
+  \   'revision': 0,
+  \   '_input': '',
+  \   '_revision': 0,
   \ }
 endfunction
 
@@ -107,8 +113,7 @@ function! compete#on_change() abort
     return ''
   endif
 
-  call timer_stop(s:on_change_timer_id)
-  let s:on_change_timer_id = timer_start(0, function('s:on_change'))
+  call s:on_change()
 
   return ''
 endfunction
@@ -267,9 +272,17 @@ function! s:on_filter(...) abort
     return
   endif
 
+  " No matching source found.
   if s:state.start == -1
     return
   endif
+
+  " Check recently completed condition.
+  if s:state.revision == s:state._revision && s:state.input ==# s:state._input
+    return
+  endif
+  let s:state._revision = s:state.revision
+  let s:state._input = s:state.input
 
   call s:log('on_filter')
 
@@ -374,12 +387,12 @@ function! s:complete_callback(context, source, id, data) abort
     let a:match.lnum = a:context.lnum
     let a:match.items = map(a:data.items, function('s:normalize_item', [a:source]))
     let a:match.incomplete = get(a:data, 'incomplete', v:false)
+    let s:state.revision += 1
   endfunction
   call add(s:complete_queue, function(l:ctx.callback, [a:context, a:source, a:id, a:data, l:match]))
 
-  let l:timeout = len(s:get_matches(['processing'])) == 0 ? 0 : g:compete_source_wait_time
   call timer_stop(s:completed_timer_id)
-  let s:completed_timer_id = timer_start(l:timeout, function('s:completed'))
+  let s:completed_timer_id = timer_start(g:compete_source_wait_time, function('s:completed'))
 endfunction
 
 "
