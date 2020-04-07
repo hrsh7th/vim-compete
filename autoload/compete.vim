@@ -157,8 +157,6 @@ function! s:on_change(...) abort
       let s:state.input = ''
       let s:state.items = []
       let s:state.times = []
-      call timer_stop(s:filter_timer_id)
-      call timer_stop(s:completed_timer_id)
     endif
 
     if len(l:starts) > 0
@@ -235,16 +233,14 @@ function! s:trigger(context, source) abort
   let l:match.items = l:match.start == l:start ? l:match.items : []
   let l:match.start = l:start
   let l:match.char_start = l:char_start
-  call timer_start(0, { ->
-  \   a:source.complete(
-  \     extend({
-  \       'start': l:start,
-  \       'input': l:input,
-  \       'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
-  \     }, a:context, 'keep'),
-  \     function('s:complete_callback', [a:context, a:source, l:match.id])
-  \   )
-  \ })
+  call a:source.complete(
+  \   extend({
+  \     'start': l:start,
+  \     'input': l:input,
+  \     'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
+  \   }, a:context, 'keep'),
+  \   function('s:complete_callback', [a:context, a:source, l:match.id])
+  \ )
 
   return l:match.start
 endfunction
@@ -313,7 +309,7 @@ function! s:on_filter(...) abort
         \   '_as_is': stridx(l:item.abbr, l:word) == 0,
         \   '_priority': 1,
         \ }, l:item, 'keep'))
-      elseif l:word =~? '^' . s:state.input
+      elseif l:word =~? '^\V' . s:state.input
         call add(l:prefix_icase_items, extend({
         \   'word': l:word,
         \   'equal': 1,
@@ -321,7 +317,7 @@ function! s:on_filter(...) abort
         \   '_priority': 2,
         \ }, l:item, 'keep'))
       elseif g:compete_fuzzy
-        let l:fuzzy = '^' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '.\{-}') . '.\{-}'
+        let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}'
         if l:word =~? l:fuzzy
           call add(l:fuzzy_items, extend({
           \   'word': l:word,
@@ -381,11 +377,9 @@ function! s:complete_callback(context, source, id, data) abort
   endfunction
   call add(s:complete_queue, function(l:ctx.callback, [a:context, a:source, a:id, a:data, l:match]))
 
+  let l:timeout = len(s:get_matches(['processing'])) == 0 ? 0 : g:compete_source_wait_time
   call timer_stop(s:completed_timer_id)
-  if len(s:get_matches(['processing'])) == 0
-    return s:completed()
-  endif
-  let s:completed_timer_id = timer_start(g:compete_source_wait_time, function('s:completed'))
+  let s:completed_timer_id = timer_start(l:timeout, function('s:completed'))
 endfunction
 
 "
@@ -408,12 +402,13 @@ endfunction
 " completed
 "
 function! s:completed(...) abort
-  if len(s:complete_queue) != 0
+  if len(s:complete_queue) > 0
     call s:log('completed')
     for l:i in range(0, len(s:complete_queue) - 1)
       call s:complete_queue[l:i]()
     endfor
     let s:complete_queue = []
+
     call s:filter(v:true)
   endif
 endfunction

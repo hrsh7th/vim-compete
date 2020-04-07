@@ -1,6 +1,6 @@
-let s:accept_pattern = '\%([^<[:digit:][:alpha:]\*\.]\)'
+let s:accept_pattern = '\%([^<[:digit:][:alpha:]\*\./]\+\)'
 let s:prefix_pattern = '\%(\~/\|\./\|\.\./\|/\)'
-let s:name_pattern = '\%([^/\\:\*?<>\|]*\)'
+let s:name_pattern = '[^/\\:\*?<>\|]'
 
 "
 " compete#source#file#register
@@ -8,28 +8,26 @@ let s:name_pattern = '\%([^/\\:\*?<>\|]*\)'
 function! compete#source#file#register() abort
   call compete#source#register({
   \   'name': 'file',
-  \   'pattern': '/' . s:name_pattern,
+  \   'pattern': '/' . s:name_pattern . '*',
   \   'priority': 100,
   \   'filetypes':  ['*'],
   \   'complete': function('s:complete')
   \ })
 endfunction
 
-
 "
 " complete
 "
 function! s:complete(context, callback) abort
-  let l:input = matchstr(a:context.before_line, s:accept_pattern . '\zs' . s:prefix_pattern . s:name_pattern . '\%(/' . s:name_pattern . '\)*$')
+  let l:input = matchstr(a:context.before_line, s:accept_pattern . '\zs' . s:prefix_pattern . '\%(' . s:name_pattern . '\+' . '\%(/' . s:name_pattern . '\)*\)\?$')
   let l:input = substitute(s:absolute(l:input), '[^/]*$', '', 'g')
 
   if !isdirectory(l:input) && !filereadable(l:input)
     return a:context.abort()
   endif
 
-  call a:callback({
-  \   'items': sort(map(globpath(l:input, '*', v:true, v:true), function('s:convert', [l:input])), function('s:sort'))
-  \ })
+  let l:items = sort(map(globpath(l:input, '*', v:true, v:true), function('s:convert', [l:input])), function('s:sort'))
+  call a:callback({ 'items': l:items })
 endfunction
 
 "
@@ -71,11 +69,20 @@ endfunction
 "
 function! s:absolute(input) abort
   if a:input =~# '^\V./' || a:input =~# '^\V../'
-    let l:input = resolve(expand('%:p:h') . '/' . a:input) . '/'
-    return l:input
+    return s:append_slash(resolve(expand('%:p:h') . '/' . a:input))
   elseif a:input =~# '^\V~/'
-    return expand(a:input)
+    return s:append_slash(expand(a:input))
   endif
   return a:input
+endfunction
+
+"
+" append_slash
+"
+function! s:append_slash(path) abort
+  if a:path[-1:-1] ==# '/'
+    return a:path
+  endif
+  return a:path . '/'
 endfunction
 
