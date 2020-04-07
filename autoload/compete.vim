@@ -528,7 +528,7 @@ endfunction
 " selected
 "
 function! s:selected() abort
-  return complete_info(['selected']).selected != -1 && !empty(v:completed_item) && strlen(get(v:completed_item, 'word')) > 0
+  return complete_info(['selected']).selected != -1
 endfunction
 
 "

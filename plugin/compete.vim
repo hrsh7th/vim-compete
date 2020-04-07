@@ -58,7 +58,7 @@ endfunction
 " s:on_complete_done
 "
 function! s:on_complete_done() abort
-  if !empty(v:completed_item) && strlen(get(v:completed_item, 'word', '')) > 0
+  if complete_info(['selected']).selected != -1
     call compete#add_history(v:completed_item.word)
     call compete#close()
   endif
