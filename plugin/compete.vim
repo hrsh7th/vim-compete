@@ -18,7 +18,6 @@ let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 
 let s:state = {
 \   'insert_enter_timer_id': -1,
-\   'complete_done_timer_id': -1,
 \ }
 
 augroup compete
@@ -59,16 +58,9 @@ endfunction
 " s:on_complete_done
 "
 function! s:on_complete_done() abort
-  let l:ctx = {}
-  function! l:ctx.callback(...) abort
-    if !empty(v:completed_item)
-      call compete#add_history(v:completed_item.word)
-      call compete#close()
-    endif
-  endfunction
-
-  call timer_stop(s:state.complete_done_timer_id)
-  let s:state.complete_done_timer_id = timer_start(100, l:ctx.callback)
+  if !empty(v:completed_item)
+    call compete#add_history(v:completed_item.word)
+  endif
 endfunction
 
 "
