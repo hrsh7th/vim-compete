@@ -136,6 +136,13 @@ function! compete#pattern(...) abort
 endfunction
 
 "
+" compete#keywords
+"
+function! compete#keywords() abort
+  return keys(s:keywords)
+endfunction
+
+"
 " on_change
 "
 function! s:on_change(...) abort
@@ -439,7 +446,6 @@ function! s:context() abort
   \   'col': l:col,
   \   'before_char': s:get_before_char(l:lnum, l:before_line),
   \   'before_line': l:before_line,
-  \   'keywords': keys(s:keywords),
   \ }
 endfunction
 
@@ -479,6 +485,7 @@ function! s:normalize_item(source, idx, item) abort
   let a:item.abbr = get(a:item, 'abbr', a:item.word)
   let a:item.user_data = get(a:item, 'user_data', '')
   let a:item._source_priority = a:source.priority
+  let a:item._text_length = strlen(a:item.abbr)
   return a:item
 endfunction
 
@@ -528,13 +535,7 @@ function! s:compare(item1, item2) abort
     return l:frequency2 - l:frequency1
   endif
 
-  let l:idx1 = get(s:keywords, a:item1.word, 0)
-  let l:idx2 = get(s:keywords, a:item2.word, 0)
-  if l:idx1 != l:idx2
-    return l:idx2 - l:idx1
-  endif
-
-  return 0
+  return a:item1._text_length - a:item2._text_length
 endfunction
 
 "

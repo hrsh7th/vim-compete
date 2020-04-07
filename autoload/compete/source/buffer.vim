@@ -13,7 +13,7 @@ endfunction
 "
 function! s:complete(context, callback) abort
   call a:callback({
-  \   'items': map(a:context.keywords, { _, keyword -> {
+  \   'items': map(compete#keywords(), { _, keyword -> {
   \     'word': keyword,
   \     'abbr': keyword,
   \     'menu': '[b]'

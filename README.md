@@ -97,8 +97,8 @@ Filepath completion.
 - multi sources support is easy but does not easy to support multi start position
     - `compete` supports `complete start position` `word pattern position` and `trigger character position`.
 
-#### Simple `locality` and `frequency` sorting.
-- `compete` will sort items to prefer frequency or locality.
+#### Simple `frequency` sorting.
+- `compete` will sort items to prefer frequency.
 
 #### Async throttled filtering with no flicker
 - auto completion plugin filter items but vim's native completion feature does it too
