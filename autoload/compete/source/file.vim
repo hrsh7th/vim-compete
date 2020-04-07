@@ -1,4 +1,4 @@
-let s:accept_pattern = '\%([^<[:digit:][:alpha:]\*\./]\+\)'
+let s:accept_pattern = '\%([^<[:digit:][:blank:]~\./]\{-1,}\)'
 let s:prefix_pattern = '\%(\~/\|\./\|\.\./\|/\)'
 let s:name_pattern = '[^/\\:\*?<>\|]'
 
@@ -19,7 +19,7 @@ endfunction
 " complete
 "
 function! s:complete(context, callback) abort
-  let l:input = matchstr(a:context.before_line, s:accept_pattern . '\zs' . s:prefix_pattern . '\%(' . s:name_pattern . '\+' . '\%(/' . s:name_pattern . '\)*\)\?$')
+  let l:input = matchstr(a:context.before_line, s:accept_pattern . '\zs' . s:prefix_pattern . '\%(' . s:name_pattern . '\+/\)*$')
   let l:input = substitute(s:absolute(l:input), '[^/]*$', '', 'g')
 
   if !isdirectory(l:input) && !filereadable(l:input)
