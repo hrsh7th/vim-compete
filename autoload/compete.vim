@@ -134,9 +134,15 @@ endfunction
 " on_change
 "
 function! s:on_change(...) abort
+
   " process.
   try
     let l:context = s:context()
+
+    call s:log(' ')
+    call s:log(printf('before_line: %s', l:context.before_line))
+    call s:log('on_change')
+
     let l:starts = []
     for l:source in compete#source#find()
       let l:start = s:trigger(l:context, l:source)
@@ -152,6 +158,7 @@ function! s:on_change(...) abort
       let s:state.items = []
       let s:state.times = []
       call timer_stop(s:filter_timer_id)
+      call timer_stop(s:completed_timer_id)
     endif
 
     if len(l:starts) > 0
@@ -220,6 +227,8 @@ function! s:trigger(context, source) abort
     return l:start
   endif
 
+  call s:log(printf('complete: %s', a:source.name))
+
   let l:match.id += 1
   let l:match.lnum = a:context.lnum
   let l:match.status = l:match.start == l:start ? 'completed' : 'processing'
@@ -243,12 +252,13 @@ endfunction
 "
 " filter
 "
-function! s:filter(force) abort
+function! s:filter(...) abort
+  call timer_stop(s:filter_timer_id)
+
   let l:time = len(s:state.times) == 0 ? g:compete_throttle_time : reltimefloat(reltime(s:state.times)) * 1000
-  if a:force || l:time >= g:compete_throttle_time
+  if l:time >= g:compete_throttle_time
     call s:on_filter()
   else
-    call timer_stop(s:filter_timer_id)
     let s:filter_timer_id = timer_start(g:compete_throttle_time, function('s:on_filter'))
   endif
 endfunction
@@ -264,6 +274,8 @@ function! s:on_filter(...) abort
   if s:state.start == -1
     return
   endif
+
+  call s:log('on_filter')
 
   let l:context = s:context()
   let l:matches = s:get_matches(['completed'])
@@ -353,6 +365,10 @@ function! s:complete_callback(context, source, id, data) abort
 
   let l:ctx = {}
   function! l:ctx.callback(context, source, id, data, match, ...) abort
+    if !has_key(a:match, 'id') || a:id < a:match.id
+      return
+    endif
+
     let l:context = s:context()
     if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
       return
@@ -393,6 +409,7 @@ endfunction
 "
 function! s:completed(...) abort
   if len(s:complete_queue) != 0
+    call s:log('completed')
     for l:i in range(0, len(s:complete_queue) - 1)
       call s:complete_queue[l:i]()
     endfor
@@ -517,5 +534,14 @@ endfunction
 "
 function! s:selected() abort
   return complete_info(['selected']).selected != -1 && !empty(v:completed_item) && strlen(get(v:completed_item, 'word')) > 0
+endfunction
+
+"
+" log
+"
+function! s:log(...) abort
+  if g:compete_debug
+    echomsg join(a:000, "\t")
+  endif
 endfunction
 
