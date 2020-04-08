@@ -18,6 +18,7 @@ let g:compete_patterns = extend(get(g:, 'compete_patterns', {}), {
 
 let s:state = {
 \   'insert_enter_timer_id': -1,
+\   'change_timer_id': -1,
 \ }
 
 inoremap <silent> <Plug>(compete-force-refresh) <C-r>=compete#refresh()<CR>
@@ -27,7 +28,7 @@ augroup compete
   autocmd InsertEnter * call s:on_insert_enter()
   autocmd InsertLeave * call s:on_insert_leave()
   autocmd CompleteDone * call s:on_complete_done()
-  autocmd InsertCharPre * call s:on_insert_char_pre()
+  autocmd TextChangedI,TextChangedP * call s:on_change()
 augroup END
 
 "
@@ -66,12 +67,12 @@ function! s:on_complete_done() abort
 endfunction
 
 "
-" on_insert_char_pre
+" on_change
 "
-inoremap <silent> <Plug>(compete-on-change) <C-r>=compete#on_change()<CR>
-function! s:on_insert_char_pre() abort
+function! s:on_change() abort
   if g:compete_enable
-    call feedkeys("\<Plug>(compete-on-change)", '')
+    call timer_stop(s:state.change_timer_id)
+    let s:state.change_timer_id = timer_start(0, { -> compete#on_change() })
   endif
 endfunction
 
