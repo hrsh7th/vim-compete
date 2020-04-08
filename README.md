@@ -15,6 +15,12 @@ Works but not documented.
 Plug 'hrsh7th/vim-compete'
 ```
 
+# mapping
+
+#### `<Plug>(compete-force-refresh)`
+
+Invoke completion with ignoring `g:compete_min_length`.
+
 
 # config
 
