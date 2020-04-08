@@ -10,7 +10,7 @@ let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
 \   'items': [],
-\   'filter_times': reltime(),
+\   'filter_reltime': reltime(),
 \   'matches': {},
 \   'input': '',
 \   'revision': 0,
@@ -26,13 +26,55 @@ function! compete#on_clear() abort
   \   'changedtick': -1,
   \   'start': -1,
   \   'items': [],
-  \   'filter_times': reltime(),
+  \   'filter_reltime': reltime(),
   \   'matches': {},
   \   'input': '',
   \   'revision': 0,
   \   '_input': '',
   \   '_revision': 0,
   \ }
+endfunction
+
+"
+" compete#add_history
+"
+function! compete#add_history(word) abort
+  let s:history[a:word] = get(s:history, a:word, 0) + 1
+endfunction
+
+"
+" compete#pattern
+"
+function! compete#pattern(...) abort
+  let l:pattern = get(get(a:000, 0, {}), 'pattern', 0)
+  let l:pattern = (l:pattern is 0 ? get(g:compete_patterns, &filetype, 0) : l:pattern)
+  let l:pattern = (l:pattern is 0 ? s:get_pattern() : l:pattern)
+  return l:pattern
+endfunction
+
+"
+" compete#keywords
+"
+function! compete#keywords() abort
+  return keys(s:keywords)
+endfunction
+
+"
+" compete#refresh
+"
+function! compete#refresh() abort
+  call s:on_change(v:true)
+  return ''
+endfunction
+
+"
+" compete#close
+"
+function! compete#close() abort
+  for l:match in values(s:state.matches)
+    let l:match.items = []
+  endfor
+  return ''
 endfunction
 
 "
@@ -85,16 +127,6 @@ function! compete#on_insert_enter() abort
 endfunction
 
 "
-" compete#close
-"
-function! compete#close() abort
-  for l:match in values(s:state.matches)
-    let l:match.items = []
-  endfor
-  return ''
-endfunction
-
-"
 " compete#on_change
 "
 function! compete#on_change() abort
@@ -113,41 +145,15 @@ function! compete#on_change() abort
     return ''
   endif
 
-  call s:on_change()
+  call s:on_change(v:false)
 
   return ''
 endfunction
 
 "
-" compete#add_history
-"
-function! compete#add_history(word) abort
-  let s:history[a:word] = get(s:history, a:word, 0) + 1
-endfunction
-
-"
-" compete#pattern
-"
-function! compete#pattern(...) abort
-  let l:pattern = get(get(a:000, 0, {}), 'pattern', 0)
-  let l:pattern = (l:pattern is 0 ? get(g:compete_patterns, &filetype, 0) : l:pattern)
-  let l:pattern = (l:pattern is 0 ? s:get_pattern() : l:pattern)
-  return l:pattern
-endfunction
-
-"
-" compete#keywords
-"
-function! compete#keywords() abort
-  return keys(s:keywords)
-endfunction
-
-"
 " on_change
 "
-function! s:on_change(...) abort
-
-  " process.
+function! s:on_change(force) abort
   try
     let l:context = s:context()
 
@@ -158,7 +164,7 @@ function! s:on_change(...) abort
     let l:starts = []
     let l:trigger = v:false
     for l:source in compete#source#find()
-      let [l:start, l:t] = s:trigger(l:context, l:source)
+      let [l:start, l:t] = s:trigger(l:context, l:source, a:force)
       let l:trigger = l:trigger || l:t
       if l:start >= 1
         call add(l:starts, l:start)
@@ -170,7 +176,7 @@ function! s:on_change(...) abort
       let s:state.start = -1
       let s:state.input = ''
       let s:state.items = []
-      let s:state.filter_times = reltime()
+      let s:state.filter_reltime = reltime()
     endif
 
     if len(l:starts) > 0
@@ -184,12 +190,14 @@ function! s:on_change(...) abort
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
     let s:error += 1
   endtry
+
+  return ''
 endfunction
 
 "
 " trigger
 "
-function! s:trigger(context, source) abort
+function! s:trigger(context, source, force) abort
   if !has_key(s:state.matches, a:source.name)
     let s:state.matches[a:source.name] = {
     \   'id': 0,
@@ -207,9 +215,10 @@ function! s:trigger(context, source) abort
   " Get complete start col for chars and patterns.
   let [l:input, l:input_start, l:_] = matchstrpos(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
+  let l:min_length = a:force ? 0 : g:compete_min_length
 
   " Does not match chars and patterns.
-  if l:chars ==# '' && (l:input_start == -1 || (l:input_start + g:compete_min_length + 1) > a:context.col)
+  if l:chars ==# '' && (l:input_start == -1 || (l:input_start + l:min_length + 1) > a:context.col)
     let l:match.id += 1
     let l:match.status = 'waiting'
     let l:match.items = []
@@ -221,7 +230,7 @@ function! s:trigger(context, source) abort
   endif
 
   " If source state is incomplete, we should force re-complete.
-  let l:force_refresh = l:match.incomplete
+  let l:force_refresh = l:match.incomplete || a:force
 
   " If matched trigger chars, we should force re-complete.
   let l:char_start = -1
@@ -232,13 +241,13 @@ function! s:trigger(context, source) abort
   endif
 
   " If matched patterns, we should start complete.
-  if l:input_start != -1 && (l:input_start + g:compete_min_length + 1) <= a:context.col
+  if l:input_start != -1 && (l:input_start + l:min_length + 1) <= a:context.col
     let l:start = l:input_start + 1
   endif
 
   " Avoid request when start position does not changed.
   if l:start == l:match.start && !l:force_refresh
-  return [l:match.start, v:false]
+    return [l:match.start, v:false]
   endif
 
   call s:log(printf('complete: %s', a:source.name))
@@ -266,7 +275,7 @@ endfunction
 function! s:filter() abort
   call timer_stop(s:filter_timer_id)
 
-  let l:filter_time = reltimefloat(reltime(s:state.filter_times)) * 1000
+  let l:filter_time = reltimefloat(reltime(s:state.filter_reltime)) * 1000
   if l:filter_time >= g:compete_throttle_time
     call s:on_filter()
   else
@@ -357,7 +366,7 @@ function! s:on_filter(...) abort
   let l:items = l:prefix_just_items + l:prefix_icase_items + l:fuzzy_items
 
   " complete.
-  let s:state.filter_times = reltime()
+  let s:state.filter_reltime = reltime()
   let s:state.items = sort(l:items, function('s:compare'))
   call complete(s:state.start, s:state.items)
 endfunction

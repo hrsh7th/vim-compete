@@ -20,6 +20,8 @@ let s:state = {
 \   'insert_enter_timer_id': -1,
 \ }
 
+inoremap <silent> <Plug>(compete-force-refresh) <C-r>=compete#refresh()<CR>
+
 augroup compete
   autocmd!
   autocmd InsertEnter * call s:on_insert_enter()
