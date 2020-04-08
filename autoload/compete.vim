@@ -10,7 +10,7 @@ let s:state = {
 \   'changedtick': -1,
 \   'start': -1,
 \   'items': [],
-\   'times': [],
+\   'filter_times': reltime(),
 \   'matches': {},
 \   'input': '',
 \   'revision': 0,
@@ -26,7 +26,7 @@ function! compete#on_clear() abort
   \   'changedtick': -1,
   \   'start': -1,
   \   'items': [],
-  \   'times': [],
+  \   'filter_times': reltime(),
   \   'matches': {},
   \   'input': '',
   \   'revision': 0,
@@ -156,8 +156,10 @@ function! s:on_change(...) abort
     call s:log('on_change')
 
     let l:starts = []
+    let l:trigger = v:false
     for l:source in compete#source#find()
-      let l:start = s:trigger(l:context, l:source)
+      let [l:start, l:t] = s:trigger(l:context, l:source)
+      let l:trigger = l:trigger || l:t
       if l:start >= 1
         call add(l:starts, l:start)
       endif
@@ -168,13 +170,15 @@ function! s:on_change(...) abort
       let s:state.start = -1
       let s:state.input = ''
       let s:state.items = []
-      let s:state.times = []
+      let s:state.filter_times = reltime()
     endif
 
     if len(l:starts) > 0
       let s:state.start = l:start
       let s:state.input = strpart(l:context.before_line, s:state.start - 1, l:context.col - l:start)
-      call s:filter(v:false)
+      if !l:trigger
+        call s:filter()
+      endif
     endif
   catch /.*/
     echomsg string({ 'exception': v:exception, 'throwpoint': v:throwpoint })
@@ -213,7 +217,7 @@ function! s:trigger(context, source) abort
     let l:match.start = -1
     let l:match.char_start = -1
     let l:match.incomplete = v:false
-    return -1
+    return [-1, v:false]
   endif
 
   " If source state is incomplete, we should force re-complete.
@@ -234,7 +238,7 @@ function! s:trigger(context, source) abort
 
   " Avoid request when start position does not changed.
   if l:start == l:match.start && !l:force_refresh
-    return l:start
+  return [l:match.start, v:false]
   endif
 
   call s:log(printf('complete: %s', a:source.name))
@@ -253,18 +257,17 @@ function! s:trigger(context, source) abort
   \   }, a:context, 'keep'),
   \   function('s:complete_callback', [a:context, a:source, l:match.id])
   \ )
-
-  return l:match.start
+  return [l:match.start, v:true]
 endfunction
 
 "
 " filter
 "
-function! s:filter(...) abort
+function! s:filter() abort
   call timer_stop(s:filter_timer_id)
 
-  let l:time = len(s:state.times) == 0 ? g:compete_throttle_time : reltimefloat(reltime(s:state.times)) * 1000
-  if l:time >= g:compete_throttle_time
+  let l:filter_time = reltimefloat(reltime(s:state.filter_times)) * 1000
+  if l:filter_time >= g:compete_throttle_time
     call s:on_filter()
   else
     let s:filter_timer_id = timer_start(g:compete_throttle_time, function('s:on_filter'))
@@ -354,7 +357,7 @@ function! s:on_filter(...) abort
   let l:items = l:prefix_just_items + l:prefix_icase_items + l:fuzzy_items
 
   " complete.
-  let s:state.times = reltime()
+  let s:state.filter_times = reltime()
   let s:state.items = sort(l:items, function('s:compare'))
   call complete(s:state.start, s:state.items)
 endfunction
@@ -429,7 +432,7 @@ function! s:completed(...) abort
     endfor
     let s:complete_queue = []
 
-    call s:filter(v:true)
+    call s:filter()
   endif
 endfunction
 
