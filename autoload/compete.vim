@@ -141,7 +141,18 @@ function! compete#on_change() abort
   endif
   let s:state.changedtick = b:changedtick
 
-  if mode()[0] !=# 'i' || s:selected()
+  " Stop when normal-mode.
+  if mode()[0] !=# 'i'
+    return ''
+  endif
+
+  " Stop when selecting item.
+  if s:selected()
+    return ''
+  endif
+
+  " Stop change detection when gathering source results.
+  if s:completed_timer_id != -1
     return ''
   endif
 
@@ -154,11 +165,12 @@ endfunction
 " on_change
 "
 function! s:on_change(force) abort
+
   try
     let l:context = s:context()
 
     call s:log(' ')
-    call s:log(printf('before_line: %s', l:context.before_line))
+    call s:log(printf('before_line: `%s`', l:context.before_line))
     call s:log('on_change')
 
     let l:starts = []
@@ -303,7 +315,7 @@ function! s:on_filter(...) abort
   let s:state._revision = s:state.revision
   let s:state._input = s:state.input
 
-  call s:log('on_filter')
+  call s:log('! filter')
 
   let l:context = s:context()
   let l:matches = s:get_matches(['completed'])
@@ -387,18 +399,27 @@ endfunction
 function! s:complete_callback(context, source, id, data) abort
   let l:match = get(s:state.matches, a:source.name, {})
   if !has_key(l:match, 'id') || a:id < l:match.id
+    call s:log('complete_callback: skip outdated request')
     return
   endif
   let l:match.status = 'retrieved'
 
+  let l:context = s:context()
+  if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
+    call s:log('complete_callback: skip context changes')
+    return
+  endif
+
   let l:ctx = {}
   function! l:ctx.callback(context, source, id, data, match, ...) abort
     if !has_key(a:match, 'id') || a:id < a:match.id
+      call s:log('complete_callback: skip outdated async')
       return
     endif
 
     let l:context = s:context()
     if l:context.bufnr != a:context.bufnr || l:context.lnum != a:context.lnum
+      call s:log('complete_callback: skip context changes async')
       return
     endif
 
@@ -434,6 +455,7 @@ endfunction
 " completed
 "
 function! s:completed(...) abort
+  let s:completed_timer_id = -1
   if len(s:complete_queue) > 0
     call s:log('completed')
     for l:i in range(0, len(s:complete_queue) - 1)
