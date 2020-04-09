@@ -1,3 +1,5 @@
+let g:compete_source_buffer_cache_range = get(g:, 'compete_source_buffer_cache_range', 1000)
+
 let s:insert_enter_timer_id = -1
 let s:keywords = {}
 
@@ -45,8 +47,8 @@ endfunction
 "
 function! s:cache(...) abort
   let l:lnum = line('.')
-  let l:min_above = max([1, l:lnum - g:compete_keyword_range])
-  let l:max_below = min([line('$'), l:lnum + g:compete_keyword_range + 1])
+  let l:min_above = max([1, l:lnum - g:compete_source_buffer_cache_range])
+  let l:max_below = min([line('$'), l:lnum + g:compete_source_buffer_cache_range + 1])
 
   let l:above = reverse(getline(l:min_above, l:lnum))
   let l:below = getline(l:lnum + 1, l:max_below)

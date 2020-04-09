@@ -19,7 +19,7 @@ Plug 'hrsh7th/vim-compete'
 
 #### `<Plug>(compete-force-refresh)`
 
-Invoke completion with ignoring `g:compete_min_length`.
+Invoke completion ignoring `g: compete_min_length`.
 
 
 # config
@@ -29,14 +29,6 @@ Invoke completion with ignoring `g:compete_min_length`.
 Type: boolean
 
 You can disable compete via this value.
-
-
-#### `g:compete_keyword_range = 1000`
-
-Type: number
-
-You can specify range to cache keywordss.
-If you specify 100, `compete` will cache lines thats in the range of `line('.') - 100` ~ `line('.') + 100`.
 
 
 #### `g:compete_throttle_time = 200`
@@ -90,6 +82,15 @@ Priority: -1
 
 Keyword completion.
 
+
+##### `g:compete_source_buffer_cache_range = 1000`
+
+Type: number
+
+You can specify range to cache keywordss.
+If you specify 100, `compete` will cache lines thats in the range of `line('.') - 100` ~ `line('.') + 100`.
+
+
 #### file
 
 Priority: 100
@@ -100,14 +101,12 @@ Filepath completion.
 # feature
 
 #### Well handling multi start position
-- multi sources support is easy but does not easy to support multi start position
+- Multi sources support is easy but does not easy to support multi start positions
     - `compete` supports `complete start position` `word pattern position` and `trigger character position`.
 
-#### Simple `frequency` sorting.
-- `compete` will sort items to prefer frequency.
+#### Simple fuzzy matching
+- `abcde` -> `^\Va\m.\{-}\Vb\m.\{-}\Vc\m.\{-}\Vd\m.\{-}\Ve`
 
-#### Async throttled filtering with no flicker
-- auto completion plugin filter items but vim's native completion feature does it too
-  - auto completion plugin should cancel vim's native completion feature to reduce flicker
-  - for example, `compete` skips some user input to improve performance but screen does not flick
+#### Simple frequency sorting
+- Sort frequently selected items.
 

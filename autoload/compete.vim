@@ -282,7 +282,7 @@ function! s:on_filter(...) abort
   let s:state._revision = s:state.revision
   let s:state._input = s:state.input
 
-  call s:log('! filter')
+  call s:log('>>>>> filter')
 
   let l:context = s:context()
   let l:prefix_just_items = []
@@ -301,7 +301,7 @@ function! s:on_filter(...) abort
 
     " Create fuzzy pattern.
     if g:compete_fuzzy
-      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}'
+      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V')
     endif
 
     let l:unique = {}
