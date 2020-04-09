@@ -233,21 +233,8 @@ function! s:trigger(context, source, force) abort
   let l:match = s:state.matches[a:source.name]
 
   " Get complete start col for chars and patterns.
-  let [l:input, l:input_start, l:_] = matchstrpos(a:context.before_line, compete#pattern(a:source) . '$')
   let l:chars = s:find(a:source.trigger_chars, a:context.before_char, '')
-  let l:min_length = a:force ? 0 : g:compete_min_length
-
-  " Does not match chars and patterns.
-  if l:chars ==# '' && l:input_start == -1
-    let l:match.id += 1
-    let l:match.status = 'waiting'
-    let l:match.items = []
-    let l:match.lnum = -1
-    let l:match.start = -1
-    let l:match.char_start = -1
-    let l:match.incomplete = v:false
-    return [-1, v:false]
-  endif
+  let [l:input, l:input_start, l:_] = matchstrpos(a:context.before_line, compete#pattern(a:source) . '$')
 
   " If source state is incomplete, we should force re-complete.
   let l:force_refresh = l:match.incomplete || a:force
@@ -265,17 +252,29 @@ function! s:trigger(context, source, force) abort
     let l:start = l:input_start + 1
   endif
 
-  " Avoid request when input text does not enough for min length.
-  if l:start + l:min_length > a:context.col && !l:force_refresh
-    if l:start == a:context.col
+  if !l:force_refresh
+    " 1. pattern does not matched.
+    " 2. input text does not provided.
+    if l:input_start == -1 || l:start == a:context.col
+      let l:match.id += 1
+      let l:match.status = 'waiting'
+      let l:match.items = []
+      let l:match.lnum = -1
+      let l:match.start = -1
+      let l:match.char_start = -1
+      let l:match.incomplete = v:false
       return [-1, v:false]
     endif
-    return [l:match.start, v:false]
-  endif
 
-  " Avoid request when start position does not changed.
-  if l:start == l:match.start && !l:force_refresh
-    return [l:match.start, v:false]
+    " Avoid request when input text does not enough for min length.
+    if l:start + g:compete_min_length > a:context.col
+      return [l:match.start, v:false]
+    endif
+
+    " Avoid request when start position does not changed.
+    if l:start == l:match.start
+      return [l:match.start, v:false]
+    endif
   endif
 
   call s:log(printf('complete: %s', a:source.name))
