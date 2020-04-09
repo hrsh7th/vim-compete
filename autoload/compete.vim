@@ -239,6 +239,8 @@ function! s:trigger(context, source, force) abort
   " If source state is incomplete, we should force re-complete.
   let l:force_refresh = l:match.incomplete || a:force
 
+  let l:start = a:context.col
+
   " If matched trigger chars, we should force re-complete.
   let l:char_start = -1
   if l:chars !=# ''
@@ -255,7 +257,7 @@ function! s:trigger(context, source, force) abort
   if !l:force_refresh
     " 1. pattern does not matched.
     " 2. input text does not provided.
-    if l:input_start == -1 || l:start == a:context.col
+    if l:start == -1 || l:start == a:context.col
       let l:match.id += 1
       let l:match.status = 'waiting'
       let l:match.items = []
