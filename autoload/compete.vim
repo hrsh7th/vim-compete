@@ -5,6 +5,7 @@ let s:on_change_timer_id = -1
 let s:filter_timer_id = -1
 let s:completed_timer_id = -1
 let s:complete_queue = []
+let s:insert_char = ''
 
 let s:state = {
 \   'changedtick': -1,
@@ -40,6 +41,13 @@ endfunction
 "
 function! compete#add_history(word) abort
   let s:history[a:word] = get(s:history, a:word, 0) + 1
+endfunction
+
+"
+" compete#set_insert_char
+"
+function! compete#set_insert_char(char) abort
+  let s:insert_char = a:char
 endfunction
 
 "
@@ -230,7 +238,7 @@ function! s:trigger(context, source, force) abort
   let l:min_length = a:force ? 0 : g:compete_min_length
 
   " Does not match chars and patterns.
-  if l:chars ==# '' && (l:input_start == -1 || (l:input_start + l:min_length + 1) > a:context.col)
+  if l:chars ==# '' && l:input_start == -1
     let l:match.id += 1
     let l:match.status = 'waiting'
     let l:match.items = []
@@ -253,8 +261,16 @@ function! s:trigger(context, source, force) abort
   endif
 
   " If matched patterns, we should start complete.
-  if l:input_start != -1 && (l:input_start + l:min_length + 1) <= a:context.col
+  if l:input_start != -1
     let l:start = l:input_start + 1
+  endif
+
+  " Avoid request when input text does not enough for min length.
+  if l:start + l:min_length > a:context.col && !l:force_refresh
+    if l:start == a:context.col
+      return [-1, v:false]
+    endif
+    return [l:match.start, v:false]
   endif
 
   " Avoid request when start position does not changed.
@@ -500,7 +516,7 @@ function! s:get_before_char(lnum, before_line) abort
     let l:lnum -= 1
   endwhile
 
-  return a:before_line[-1:-1]
+  return s:insert_char
 endfunction
 
 "

@@ -28,6 +28,7 @@ augroup compete
   autocmd InsertEnter * call s:on_insert_enter()
   autocmd InsertLeave * call s:on_insert_leave()
   autocmd CompleteDone * call s:on_complete_done()
+  autocmd InsertCharPre * call s:on_insert_char_pre()
   autocmd TextChangedI,TextChangedP * call s:on_change()
 augroup END
 
@@ -53,6 +54,7 @@ endfunction
 "
 function! s:on_insert_leave() abort
   if g:compete_enable
+    call compete#set_insert_char('')
     call compete#on_clear()
   endif
 endfunction
@@ -64,6 +66,13 @@ function! s:on_complete_done() abort
   if !empty(v:completed_item)
     call compete#add_history(v:completed_item.word)
   endif
+endfunction
+
+"
+" on_insert_char_pre
+"
+function! s:on_insert_char_pre() abort
+  call compete#set_insert_char(v:char)
 endfunction
 
 "
