@@ -40,7 +40,6 @@ function! s:on_insert_enter() abort
     let l:ctx = {}
     function! l:ctx.callback() abort
       if mode()[0] ==# 'i'
-        call compete#on_insert_enter()
         call compete#on_change()
       endif
     endfunction

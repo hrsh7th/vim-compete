@@ -1,5 +1,4 @@
 let s:error = 0
-let s:keywords = {}
 let s:history = {}
 let s:filter_timer_id = -1
 let s:completed_timer_id = -1
@@ -60,13 +59,6 @@ function! compete#pattern(...) abort
 endfunction
 
 "
-" compete#keywords
-"
-function! compete#keywords() abort
-  return keys(s:keywords)
-endfunction
-
-"
 " compete#refresh
 "
 function! compete#refresh() abort
@@ -82,55 +74,6 @@ function! compete#close() abort
     let l:match.items = []
   endfor
   return ''
-endfunction
-
-"
-" compete#on_insert_enter
-"
-function! compete#on_insert_enter() abort
-  let l:lnum = line('.')
-  let l:min_above = max([1, l:lnum - g:compete_keyword_range])
-  let l:max_below = min([line('$'), l:lnum + g:compete_keyword_range + 1])
-
-  let l:above = reverse(getline(l:min_above, l:lnum))
-  let l:below = getline(l:lnum + 1, l:max_below)
-
-  let l:above_len = len(l:above)
-  let l:below_len = len(l:below)
-  let l:min_len = min([l:above_len, l:below_len])
-
-  let l:lines = []
-  for l:i in range(0, l:min_len - 1)
-    if strlen(l:above[l:i]) < 200
-      call add(l:lines, l:above[l:i])
-    endif
-    if strlen(l:below[l:i]) < 200
-      call add(l:lines, l:below[l:i])
-    endif
-  endfor
-
-  if l:above_len > l:min_len
-    let l:lines += filter(l:above[l:min_len : -1], 'strlen(v:val) < 200')
-  endif
-  if l:below_len > l:min_len
-    let l:lines += filter(l:below[l:min_len : -1], 'strlen(v:val) < 200')
-  endif
-
-  let l:pattern = compete#pattern()
-
-  let s:keywords = {}
-  let l:index = 0
-  for l:keyword in split((' ' . join(l:lines, ' ') . ' '), l:pattern . '\zs.\{-1,}\ze' . l:pattern)
-    let l:keyword = trim(l:keyword)
-    if len(l:keyword) > 2
-      if has_key(s:keywords, l:keyword)
-        continue
-      endif
-
-      let s:keywords[l:keyword] = l:index
-      let l:index += 1
-    endif
-  endfor
 endfunction
 
 "
@@ -315,17 +258,25 @@ endfunction
 " on_filter
 "
 function! s:on_filter(...) abort
-  if mode()[0] !=# 'i' || s:selected()
+  if mode()[0] !=# 'i'
+    call s:log('on_filter: skip mode()[0] !=# i')
+    return
+  endif
+
+  if s:selected()
+    call s:log('on_filter: skip selected')
     return
   endif
 
   " No matching source found.
   if s:state.start == -1
+    call s:log('on_filter: skip s:state.start is -1')
     return
   endif
 
   " Check recently completed condition.
   if s:state.revision == s:state._revision && s:state.input ==# s:state._input
+    call s:log('on_filter: skip duplicate filter')
     return
   endif
   let s:state._revision = s:state.revision
@@ -334,12 +285,11 @@ function! s:on_filter(...) abort
   call s:log('! filter')
 
   let l:context = s:context()
-  let l:matches = s:get_matches(['completed'])
   let l:prefix_just_items = []
   let l:prefix_icase_items = []
   let l:fuzzy_items = []
 
-  for l:match in l:matches
+  for l:match in s:get_matches(['completed'])
     " We should fix word for three kind of complete start col.
     " 1. actual... s:state.start
     " 2. pattern... l:match.start
@@ -347,6 +297,11 @@ function! s:on_filter(...) abort
     let l:short = strpart(l:context.before_line, s:state.start - 1, l:match.start - s:state.start)
     if l:match.char_start != -1
       let l:short .= strpart(l:context.before_line, l:match.start - 1, l:match.char_start - l:match.start)
+    endif
+
+    " Create fuzzy pattern.
+    if g:compete_fuzzy
+      let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}'
     endif
 
     let l:unique = {}
@@ -377,7 +332,6 @@ function! s:on_filter(...) abort
         \   '_priority': 2,
         \ }, l:item, 'keep'))
       elseif g:compete_fuzzy
-        let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V') . '\m.\{-}'
         if l:word =~? l:fuzzy
           call add(l:fuzzy_items, extend({
           \   'word': l:word,
@@ -579,10 +533,12 @@ function! s:compare(item1, item2) abort
     return 1
   endif
 
-  let l:frequency1 = get(s:history, a:item1.word, 0)
-  let l:frequency2 = get(s:history, a:item2.word, 0)
-  if l:frequency1 != l:frequency2
-    return l:frequency2 - l:frequency1
+  if has_key(s:history, a:item1.word) || has_key(s:history, a:item2.word)
+    let l:frequency1 = get(s:history, a:item1.word, -1)
+    let l:frequency2 = get(s:history, a:item2.word, -1)
+    if l:frequency1 != l:frequency2
+      return l:frequency2 - l:frequency1
+    endif
   endif
 
   return a:item1._text_length - a:item2._text_length
