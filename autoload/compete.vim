@@ -1,7 +1,6 @@
 let s:error = 0
 let s:keywords = {}
 let s:history = {}
-let s:on_change_timer_id = -1
 let s:filter_timer_id = -1
 let s:completed_timer_id = -1
 let s:complete_queue = []

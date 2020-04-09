@@ -80,8 +80,7 @@ endfunction
 "
 function! s:on_change() abort
   if g:compete_enable
-    call timer_stop(s:state.change_timer_id)
-    let s:state.change_timer_id = timer_start(0, { -> compete#on_change() })
+    call compete#on_change()
   endif
 endfunction
 
