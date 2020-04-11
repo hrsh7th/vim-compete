@@ -69,11 +69,13 @@ endfunction
 "
 " compete#close
 "
-function! compete#close() abort
+function! compete#close(...) abort
+  let l:option = get(a:000, 0, { 'confirm': v:true })
+
   for l:match in values(s:state.matches)
     let l:match.items = []
   endfor
-  return ''
+  return l:option.confirm ? "\<C-y>" : "\<C-e>"
 endfunction
 
 "
