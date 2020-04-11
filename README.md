@@ -21,10 +21,16 @@ Plug 'hrsh7th/vim-compete'
 
 Invoke completion ignoring `g: compete_min_length`.
 
-You can mapping as following to confirm or cancel completion with `<CR>`.
+You can mapping as following to confirm or cancel completion with `<CR>`/`<Esc>`.
 
 ```viml
-imap <CR> pumvisible() ? compete#close({ 'confirm': v:true }) : "\<CR>"
+imap <expr><CR>  pumvisible() ? compete#close({ 'confirm': v:true })  : "\<CR>"
+imap <expr><Esc> pumvisible() ? compete#close({ 'confirm': v:false }) : "\<Esc>"
+
+" or
+
+imap <expr><CR>  complete_info(['selected']).selected != -1 ? compete#close({ 'confirm': v:true })  : "\<CR>"
+imap <expr><Esc> complete_info(['selected']).selected != -1 ? compete#close({ 'confirm': v:false }) : "\<Esc>"
 ```
 
 
