@@ -36,7 +36,11 @@ imap <expr><Esc> complete_info(['selected']).selected != -1 ? compete#close({ 'c
 If you using pear-tree or lexima.vim, You should care about it.
 
 ```viml
+" For lexima.vim
 imap <expr><CR> pumvisible() ? compete#close({ 'confirm': v:true }) : lexima#expand('<LT>CR>', 'i')
+
+" For pear-tree
+imap <expr><CR> pumvisible() ? compete#close({ 'confirm': v:true }) : "<Plug>(PearTreeExpand)"
 ```
 
 
