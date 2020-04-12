@@ -245,11 +245,11 @@ endfunction
 "
 " filter
 "
-function! s:filter() abort
+function! s:filter(...) abort
   call timer_stop(s:filter_timer_id)
 
   let l:filter_time = reltimefloat(reltime(s:state.filter_reltime)) * 1000
-  if l:filter_time >= g:compete_throttle_time
+  if l:filter_time >= g:compete_throttle_time || get(a:000, 0, v:false)
     call s:on_filter()
   else
     let s:filter_timer_id = timer_start(g:compete_throttle_time, function('s:on_filter'))
@@ -435,7 +435,7 @@ function! s:completed(...) abort
     endfor
     let s:complete_queue = []
 
-    call s:filter()
+    call s:filter(v:true)
   endif
 endfunction
 
