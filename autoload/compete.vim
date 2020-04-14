@@ -525,6 +525,10 @@ function! s:compare(item1, item2) abort
     return a:item1._priority - a:item2._priority
   endif
 
+  if has_key(a:item1, '_sort_text') && has_key(a:item2, '_sort_text') && a:item1._sort_text !=# a:item2._sort_text
+    return a:item1._sort_text - a:item2._sort_text
+  endif
+
   if a:item1._as_is != a:item2._as_is
     return a:item2._as_is - a:item1._as_is
   endif
