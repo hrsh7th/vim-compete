@@ -103,11 +103,6 @@ function! compete#on_change() abort
     return ''
   endif
 
-  " Stop change detection when gathering source results.
-  if s:completed_timer_id != -1
-    return ''
-  endif
-
   call s:on_change(v:false)
 
   return ''
@@ -370,7 +365,7 @@ endfunction
 "
 function! s:complete_callback(context, source, id, data) abort
   let l:match = get(s:state.matches, a:source.name, {})
-  if !has_key(l:match, 'id') || a:id < l:match.id
+  if !has_key(l:match, 'id') || a:id != l:match.id
     call s:log('complete_callback: skip outdated request')
     return
   endif
@@ -384,7 +379,7 @@ function! s:complete_callback(context, source, id, data) abort
 
   let l:ctx = {}
   function! l:ctx.callback(context, source, id, data, match, ...) abort
-    if !has_key(a:match, 'id') || a:id < a:match.id
+    if !has_key(a:match, 'id') || a:id != a:match.id
       call s:log('complete_callback: skip outdated async')
       return
     endif

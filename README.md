@@ -132,3 +132,7 @@ Filepath completion.
 ### Simple frequency sorting
 - Sort frequently selected items.
 
+
+# TODO
+- Use golang for filter/sort.
+
