@@ -347,7 +347,10 @@ function! s:on_filter(...) abort
   " complete.
   let s:state.filter_reltime = reltime()
   let s:state.items = sort(l:items, function('s:compare'))
+  let l:completeopt = &completeopt
+  set completeopt=menu,menuone,noselect
   call complete(s:state.start, s:state.items)
+  let &completeopt = l:completeopt
 endfunction
 
 "
