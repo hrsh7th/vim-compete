@@ -226,14 +226,18 @@ function! s:trigger(context, source, force) abort
   let l:match.items = l:match.start == l:start ? l:match.items : []
   let l:match.start = l:start
   let l:match.char_start = l:char_start
-  call a:source.complete(
-  \   extend({
-  \     'start': l:start,
-  \     'input': l:input,
-  \     'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
-  \   }, a:context, 'keep'),
-  \   function('s:complete_callback', [a:context, a:source, l:match.id])
-  \ )
+  try
+    call a:source.complete(
+    \   extend({
+    \     'start': l:start,
+    \     'input': l:input,
+    \     'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
+    \   }, a:context, 'keep'),
+    \   function('s:complete_callback', [a:context, a:source, l:match.id])
+    \ )
+  catch /.*/
+    call s:log({ 'exception': v:exception, 'throwpoint': v:throwpoint })
+  endtry
   return [l:match.start, v:true]
 endfunction
 
