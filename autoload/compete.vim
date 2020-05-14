@@ -231,6 +231,9 @@ function! s:trigger(context, source, force) abort
     \   extend({
     \     'start': l:start,
     \     'input': l:input,
+    \     'force': a:force,
+    \     'incomplete': l:match.incomplete,
+    \     'trigger_char': l:chars,
     \     'abort': function('s:abort_callback', [a:context, a:source, l:match.id]),
     \   }, a:context, 'keep'),
     \   function('s:complete_callback', [a:context, a:source, l:match.id])
@@ -291,6 +294,7 @@ function! s:on_filter(...) abort
   let l:fuzzy_items = []
 
   for l:match in s:get_matches(['completed'])
+    call s:log(printf('filter: %s (%s)', l:match.source.name, len(l:match.items)))
     " We should fix word for three kind of complete start col.
     " 1. actual... s:state.start
     " 2. pattern... l:match.start
@@ -305,13 +309,8 @@ function! s:on_filter(...) abort
       let l:fuzzy = '^\V' . l:short . join(split(s:state.input[strlen(l:short) : -1], '\zs'), '\m.\{-}\V')
     endif
 
-    let l:unique = {}
     for l:item in l:match.items
       let l:word = stridx(l:item.word, l:short) == 0 ? l:item.word : l:short . l:item.word
-      if has_key(l:unique, l:word)
-        continue
-      endif
-      let l:unique[l:word] = 1
 
       " Check first character for performance.
       if l:word[0] !~? s:state.input[0]

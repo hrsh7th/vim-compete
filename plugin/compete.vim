@@ -5,7 +5,7 @@ let g:loaded_compete = v:true
 
 let g:compete_enable = get(g:, 'compete_enable', v:true)
 let g:compete_debug = get(g:, 'compete_debug', v:false)
-let g:compete_throttle_time = get(g:, 'compete_throttle_time', 200)
+let g:compete_throttle_time = get(g:, 'compete_throttle_time', 120)
 let g:compete_source_wait_time = get(g:, 'compete_source_wait_time', 100)
 let g:compete_fuzzy = get(g:, 'compete_fuzzy', v:true)
 let g:compete_linewise_chars = get(g:, 'compete_linewise_chars', [',', '{'])
