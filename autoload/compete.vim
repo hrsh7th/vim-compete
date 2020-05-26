@@ -534,9 +534,9 @@ function! s:compare(item1, item2) abort
     return a:item2._as_is - a:item1._as_is
   endif
 
-  if a:item1.user_data !=# '' && a:item2.user_data ==# ''
+  if a:item1.user_data is# '' && a:item2.user_data is# ''
     return -1
-  elseif a:item1.user_data ==# '' && a:item2.user_data !=# ''
+  elseif a:item1.user_data is# '' && a:item2.user_data is# ''
     return 1
   endif
 
