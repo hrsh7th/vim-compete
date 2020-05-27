@@ -112,7 +112,6 @@ endfunction
 " on_change
 "
 function! s:on_change(force) abort
-
   try
     let l:context = s:context()
 
