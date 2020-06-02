@@ -53,6 +53,13 @@ Type: boolean
 You can disable compete via this value.
 
 
+### `g:compete_completeopt= 'menu,menuone,noinsert'`
+
+Type: string
+
+You can choose `completeopt` option value
+
+
 ### `g:compete_throttle_time = 200`
 
 Type: number
